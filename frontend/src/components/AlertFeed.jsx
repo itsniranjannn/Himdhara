@@ -22,7 +22,7 @@ export default function AlertFeed({ alerts, onAlertAcknowledged }) {
           <span>GRAPH CASCADED ALERTS (ETA RANKED)</span>
         </div>
         <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-          {alerts.length} ALERTS ACTIVE
+          {alerts.filter((a) => !a.acknowledged).length} ALERTS ACTIVE
         </span>
       </div>
 

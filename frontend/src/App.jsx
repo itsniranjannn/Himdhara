@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Header from "./components/Header";
 import RiverMap from "./components/RiverMap";
 import TelemetryChart from "./components/TelemetryChart";
@@ -17,6 +17,11 @@ export default function App() {
   const [selectedReadings, setSelectedReadings] = useState([]);
   const [latestTelemetryMap, setLatestTelemetryMap] = useState({});
   const [readingCounter, setReadingCounter] = useState(0);
+
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+  }, [selectedNodeId]);
 
   // 1. Initial Data Fetch
   const loadInitialData = async () => {
@@ -75,7 +80,10 @@ export default function App() {
       const history = await fetchNodeReadings(nodeId, 35);
       // Explicitly tag each historical reading with nodeId to enforce station isolation
       const tagged = (history || []).map((r) => ({ ...r, node_id: nodeId }));
-      setSelectedReadings(tagged);
+      // Guard against race conditions: only update if user is still on this node
+      if (selectedNodeIdRef.current === nodeId) {
+        setSelectedReadings(tagged);
+      }
     } catch (err) {
       console.error("Failed to load node history:", err);
     }
@@ -111,11 +119,12 @@ export default function App() {
       );
 
       // If this reading belongs to the currently inspected station, append to chart
-      if (item.node_id === selectedNodeId) {
+      const currentSelectedId = selectedNodeIdRef.current;
+      if (item.node_id === currentSelectedId) {
         setSelectedReadings((prev) => {
           // Strictly reject any points belonging to a different station
-          const valid = prev.filter((r) => !r.node_id || r.node_id === selectedNodeId);
-          const updated = [...valid, { ...item, node_id: selectedNodeId }];
+          const valid = prev.filter((r) => !r.node_id || r.node_id === currentSelectedId);
+          const updated = [...valid, { ...item, node_id: currentSelectedId }];
           return updated.slice(-35); // Keep last 35 points
         });
       }
@@ -146,13 +155,12 @@ export default function App() {
         )
       );
     }
-  }, [selectedNodeId]);
+  }, []);
 
   const { isConnected } = useWebSocket("ws://localhost:8000/ws/stream", handleWebSocketMessage);
 
   const handleSelectNode = (nodeId) => {
     if (nodeId !== selectedNodeId) {
-      // Immediately reset chart array before state switch
       setSelectedReadings([]);
       setSelectedNodeId(nodeId);
     }
@@ -182,7 +190,12 @@ export default function App() {
   const uniqueSettlementsAtRisk = new Map();
   activeAlerts.forEach((a) => {
     if (!uniqueSettlementsAtRisk.has(a.affected_settlement_id)) {
-      uniqueSettlementsAtRisk.set(a.affected_settlement_id, a.population_at_risk || 0);
+      let pop = a.population_at_risk;
+      if (!pop || pop === 0) {
+        const found = settlements.find((s) => s.settlement_id === a.affected_settlement_id);
+        pop = found ? found.population : 0;
+      }
+      uniqueSettlementsAtRisk.set(a.affected_settlement_id, pop || 0);
     }
   });
   const totalPopulationAtRisk = Array.from(uniqueSettlementsAtRisk.values()).reduce((sum, pop) => sum + pop, 0);
@@ -217,9 +230,11 @@ export default function App() {
           <div className="metric-card">
             <span className="metric-label">Active Downstream Alerts</span>
             <div className="metric-value" style={{ color: activeAlerts.length > 0 ? "#f97316" : "#38bdf8" }}>
-              {activeAlerts.length} SETTLEMENTS
+              {activeAlerts.length} ROUTES
             </div>
-            <span className="metric-sub">Dijkstra Shortest Arrival Route</span>
+            <span className="metric-sub">
+              {uniqueSettlementsAtRisk.size} of {settlements.length || 5} settlements affected
+            </span>
           </div>
 
           <div className="metric-card">
@@ -227,7 +242,9 @@ export default function App() {
             <div className="metric-value" style={{ color: totalPopulationAtRisk > 0 ? "#f87171" : "#f8fafc" }}>
               {totalPopulationAtRisk.toLocaleString()}
             </div>
-            <span className="metric-sub">Targeted for Priority Evacuation</span>
+            <span className="metric-sub">
+              Across {uniqueSettlementsAtRisk.size} distinct threatened {uniqueSettlementsAtRisk.size === 1 ? "settlement" : "settlements"}
+            </span>
           </div>
 
           <div className="metric-card">

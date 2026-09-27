@@ -22,10 +22,11 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
     );
   }
 
-  // Ensure chart points strictly belong to this selected station
-  const stationReadings = (readings || []).filter(
-    (r) => !r.node_id || r.node_id === selectedNode.node_id
-  );
+  // Ensure chart points belong to this selected station (relaxed matching so valid historical data is never excluded)
+  const stationReadings = (readings || []).filter((r) => {
+    if (!r.node_id) return true;
+    return String(r.node_id).trim() === String(selectedNode.node_id).trim();
+  });
 
   // Thresholds from node configuration
   const thresholds = selectedNode.thresholds || {};
@@ -33,28 +34,34 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
   const tWarn = thresholds.water_level_warning || 150;
   const tCrit = thresholds.water_level_critical || 200;
 
-  // Format data for recharts
-  const chartData = stationReadings.map((r, idx) => {
-    const timeStr = r.timestamp
-      ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : `T-${stationReadings.length - idx}`;
-    return {
-      time: timeStr,
-      water_level: r.water_level_cm,
-      ema: r.ema_water_level,
-      rainfall: r.rainfall_mm,
-      soil: r.soil_moisture_pct,
-      hsi: r.hsi_score,
-      rate: r.rate_of_change_cm_min
-    };
-  });
-
   // Resolve live telemetry: prioritize live telemetry map for this specific selected station,
   // then latest station reading from filtered history, then node.latest_reading
   const live =
     latestTelemetryMap[selectedNode.node_id] ||
     (stationReadings.length > 0 ? stationReadings[stationReadings.length - 1] : selectedNode.latest_reading) ||
     {};
+
+  // Format data for recharts
+  // If station readings array is empty but live telemetry exists, provide live reading as baseline curve
+  const pointsToRender =
+    stationReadings.length > 0
+      ? stationReadings
+      : (live.water_level_cm !== undefined ? [{ ...live, node_id: selectedNode.node_id }] : []);
+
+  const chartData = pointsToRender.map((r, idx) => {
+    const timeStr = r.timestamp
+      ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : `T-${pointsToRender.length - idx}`;
+    return {
+      time: timeStr,
+      water_level: typeof r.water_level_cm === "number" ? r.water_level_cm : parseFloat(r.water_level_cm) || 0,
+      ema: r.ema_water_level !== null && r.ema_water_level !== undefined ? (typeof r.ema_water_level === "number" ? r.ema_water_level : parseFloat(r.ema_water_level)) : undefined,
+      rainfall: typeof r.rainfall_mm === "number" ? r.rainfall_mm : parseFloat(r.rainfall_mm) || 0,
+      soil: typeof r.soil_moisture_pct === "number" ? r.soil_moisture_pct : parseFloat(r.soil_moisture_pct) || 0,
+      hsi: typeof r.hsi_score === "number" ? r.hsi_score : parseFloat(r.hsi_score) || 0,
+      rate: typeof r.rate_of_change_cm_min === "number" ? r.rate_of_change_cm_min : parseFloat(r.rate_of_change_cm_min) || 0
+    };
+  });
 
   const liveRisk = live.risk_level || selectedNode.current_risk || "NORMAL";
 

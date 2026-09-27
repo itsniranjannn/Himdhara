@@ -5,6 +5,11 @@ export function useWebSocket(url, onMessage) {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const pingIntervalRef = useRef(null);
+  const onMessageRef = useRef(onMessage);
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   useEffect(() => {
     let unmounted = false;
@@ -31,8 +36,8 @@ export function useWebSocket(url, onMessage) {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type !== "pong" && onMessage) {
-              onMessage(data);
+            if (data.type !== "pong" && onMessageRef.current) {
+              onMessageRef.current(data);
             }
           } catch (e) {
             console.error("WS Parse Error:", e);
