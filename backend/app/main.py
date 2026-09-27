@@ -123,6 +123,7 @@ def get_nodes(db: Session = Depends(get_db)):
                 "timestamp": latest.timestamp.isoformat() if latest.timestamp else None
             }
             
+        effective_risk = latest.risk_level if latest else (n.current_risk or "NORMAL")
         results.append(NodeStatus(
             node_id=n.node_id,
             name=n.name,
@@ -131,7 +132,7 @@ def get_nodes(db: Session = Depends(get_db)):
             lat=n.lat,
             lng=n.lng,
             description=n.description,
-            current_risk=n.current_risk,
+            current_risk=effective_risk,
             latest_reading=latest_dict,
             thresholds=json.loads(n.thresholds) if n.thresholds else {}
         ))

@@ -43,6 +43,16 @@ export default function App() {
       setNodes(nodesData);
       setTopology(topoData);
       setAlerts(alertsData);
+
+      // Hydrate latestTelemetryMap immediately from initial node readings
+      const initialTelemetry = {};
+      nodesData.forEach((n) => {
+        if (n.latest_reading) {
+          initialTelemetry[n.node_id] = { ...n.latest_reading, node_id: n.node_id };
+        }
+      });
+      setLatestTelemetryMap(initialTelemetry);
+
       if (statsData && statsData.total_readings !== undefined) {
         setReadingCounter(statsData.total_readings);
       }
@@ -147,9 +157,15 @@ export default function App() {
   const selectedNode = nodes.find((n) => n.node_id === selectedNodeId) || nodes[0];
   const settlements = topology?.settlements || [];
 
+  // Canonical live risk getter ensuring top metrics, map markers, and audit table derive from the exact same live field
+  const getNodeRisk = (node) => {
+    const live = latestTelemetryMap[node.node_id] || node.latest_reading;
+    return live?.risk_level || node.current_risk || "NORMAL";
+  };
+
   // Summary Metrics
-  const criticalCount = nodes.filter((n) => (latestTelemetryMap[n.node_id]?.risk_level || n.current_risk) === "CRITICAL").length;
-  const warningCount = nodes.filter((n) => (latestTelemetryMap[n.node_id]?.risk_level || n.current_risk) === "WARNING").length;
+  const criticalCount = nodes.filter((n) => getNodeRisk(n) === "CRITICAL").length;
+  const warningCount = nodes.filter((n) => getNodeRisk(n) === "WARNING").length;
   const activeAlerts = alerts.filter((a) => !a.acknowledged);
 
   // Deduplicate settlements so each downstream community population is counted exactly once
@@ -234,6 +250,7 @@ export default function App() {
               topology={topology}
               selectedNodeId={selectedNodeId}
               onSelectNode={handleSelectNode}
+              latestTelemetryMap={latestTelemetryMap}
             />
           </div>
 

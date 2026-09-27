@@ -73,7 +73,7 @@ function createSettlementIcon() {
   });
 }
 
-export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode }) {
+export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {} }) {
   // Center roughly on Langtang - Trishuli basin (Lat: 28.08, Lng: 85.32)
   const centerPosition = [28.06, 85.32];
 
@@ -136,7 +136,8 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
         {/* Sensor Node Markers */}
         {nodes.map((node) => {
           const isSelected = node.node_id === selectedNodeId;
-          const risk = node.current_risk || "NORMAL";
+          const live = latestTelemetryMap[node.node_id] || node.latest_reading || {};
+          const risk = live.risk_level || node.current_risk || "NORMAL";
           const icon = createStationIcon(risk, isSelected);
 
           return (
@@ -155,11 +156,11 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                     ID: {node.node_id} | Elev: {node.elevation_m}m
                   </div>
                   <div>Status: <b>{risk}</b></div>
-                  {node.latest_reading && (
+                  {live.water_level_cm !== undefined && (
                     <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid #cbd5e1", paddingTop: "4px" }}>
-                      <div>Water: <b>{node.latest_reading.water_level_cm} cm</b></div>
-                      <div>Rainfall: <b>{node.latest_reading.rainfall_mm} mm</b></div>
-                      <div>Soil Sat: <b>{node.latest_reading.soil_moisture_pct} %</b></div>
+                      <div>Water: <b>{live.water_level_cm} cm</b></div>
+                      <div>Rainfall: <b>{live.rainfall_mm} mm</b></div>
+                      <div>Soil Sat: <b>{live.soil_moisture_pct} %</b></div>
                     </div>
                   )}
                   <button
