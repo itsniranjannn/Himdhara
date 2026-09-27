@@ -5,7 +5,7 @@ import TelemetryChart from "./components/TelemetryChart";
 import AlertFeed from "./components/AlertFeed";
 import SpikeControl from "./components/SpikeControl";
 import RawDataTable from "./components/RawDataTable";
-import { fetchNodes, fetchTopology, fetchNodeReadings, fetchAlerts } from "./services/api";
+import { fetchNodes, fetchTopology, fetchNodeReadings, fetchAlerts, fetchStats } from "./services/api";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { Activity, AlertTriangle, ShieldAlert, Users, Droplets } from "lucide-react";
 
@@ -21,20 +21,33 @@ export default function App() {
   // 1. Initial Data Fetch
   const loadInitialData = async () => {
     try {
-      const [nodesData, topoData, alertsData, statsData] = await Promise.all([
+      const [nodesRes, topoRes, alertsRes, statsRes] = await Promise.allSettled([
         fetchNodes(),
         fetchTopology(),
         fetchAlerts(),
-        fetchStats().catch(() => ({ total_readings: 0 }))
+        fetchStats()
       ]);
+
+      const nodesData = nodesRes.status === "fulfilled" ? nodesRes.value : [];
+      const topoData = topoRes.status === "fulfilled" ? topoRes.value : null;
+      const alertsData = alertsRes.status === "fulfilled" ? alertsRes.value : [];
+      const statsData = statsRes.status === "fulfilled" ? statsRes.value : { total_readings: 0 };
+
+      console.log("[+] Initial Data Loaded:", {
+        nodes: nodesData.length,
+        topology: topoData ? "loaded" : "null",
+        alerts: alertsData.length,
+        total_readings: statsData.total_readings
+      });
+
       setNodes(nodesData);
       setTopology(topoData);
       setAlerts(alertsData);
       if (statsData && statsData.total_readings !== undefined) {
         setReadingCounter(statsData.total_readings);
       }
-      if (nodesData.length > 0 && !selectedNodeId) {
-        setSelectedNodeId(nodesData[0].node_id);
+      if (nodesData.length > 0) {
+        setSelectedNodeId((prev) => prev || nodesData[0].node_id);
       }
     } catch (err) {
       console.error("Initialization error:", err);

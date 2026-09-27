@@ -19,6 +19,8 @@ def seed_river_network():
         data = json.load(f)
 
     db = SessionLocal()
+    inserted = 0
+    updated = 0
     try:
         for n in data.get("nodes", []):
             node_id = n["node_id"]
@@ -42,12 +44,15 @@ def seed_river_network():
                     current_risk="NORMAL"
                 )
                 db.add(new_node)
+                inserted += 1
             else:
                 existing.thresholds = json.dumps(thresholds)
                 existing.downstream_targets = json.dumps(n.get("downstream_targets", []))
+                updated += 1
         
         db.commit()
-        print("River network sensor nodes seeded successfully.")
+        total = db.query(NodeModel).count()
+        print(f"[*] River network sensor nodes seeded successfully ({inserted} inserted, {updated} synchronized, total stations in database: {total}).", flush=True)
     finally:
         db.close()
 

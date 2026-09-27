@@ -31,18 +31,25 @@ export default function RawDataTable({ nodes, latestTelemetryMap }) {
             </tr>
           </thead>
           <tbody>
-            {nodes.map((n) => {
-              const live = latestTelemetryMap[n.node_id] || n.latest_reading || {};
-              const risk = live.risk_level || n.current_risk || "NORMAL";
+            {nodes.length === 0 ? (
+              <tr>
+                <td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                  Connecting to telemetry stream and loading monitoring stations...
+                </td>
+              </tr>
+            ) : (
+              nodes.map((n) => {
+                const live = latestTelemetryMap[n.node_id] || n.latest_reading || {};
+                const risk = live.risk_level || n.current_risk || "NORMAL";
 
-              return (
-                <tr
-                  key={n.node_id}
-                  style={{
-                    borderBottom: "1px solid rgba(255,255,255,0.03)",
-                    background: risk === "CRITICAL" ? "rgba(239, 68, 68, 0.08)" : "transparent"
-                  }}
-                >
+                return (
+                  <tr
+                    key={n.node_id}
+                    style={{
+                      borderBottom: "1px solid rgba(255,255,255,0.03)",
+                      background: risk === "CRITICAL" ? "rgba(239, 68, 68, 0.08)" : "transparent"
+                    }}
+                  >
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
                     {n.node_id}
                   </td>
@@ -73,7 +80,7 @@ export default function RawDataTable({ nodes, latestTelemetryMap }) {
                   </td>
                 </tr>
               );
-            })}
+            }))}
           </tbody>
         </table>
       </div>

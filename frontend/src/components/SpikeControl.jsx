@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Zap, Flame, Sliders, AlertTriangle } from "lucide-react";
 import { triggerSpike } from "../services/api";
 
@@ -7,6 +7,14 @@ export default function SpikeControl({ nodes, onSpikeTriggered }) {
   const [surgeCm, setSurgeCm] = useState(150);
   const [isTriggering, setIsTriggering] = useState(false);
   const [lastMsg, setLastMsg] = useState("");
+
+  useEffect(() => {
+    if (nodes && nodes.length > 0) {
+      if (!targetNode || !nodes.some(n => n.node_id === targetNode)) {
+        setTargetNode(nodes[0].node_id);
+      }
+    }
+  }, [nodes, targetNode]);
 
   const handleTrigger = async () => {
     setIsTriggering(true);
