@@ -73,4 +73,11 @@ class AlertDispatcher:
             print(f"   Simulated SMS Sent: 'FLOOD ALERT: Evacuate riverbanks toward {alert['evacuation_zone']}. ETA {alert['eta_minutes']}m.'")
             print("=" * 70 + "\n")
 
+    async def dispatch_resolved(self, source_node_id: str):
+        """Broadcasts alert resolution to dashboard when river levels normalize."""
+        await self.broadcast({
+            "type": "ALERTS_RESOLVED",
+            "source_node_id": source_node_id
+        })
+
 dispatcher = AlertDispatcher()

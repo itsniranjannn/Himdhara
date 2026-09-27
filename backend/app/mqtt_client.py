@@ -144,33 +144,66 @@ class MQTTIngestionService:
                 node_rec.current_risk = risk_level
                 node_rec.last_updated = ts
 
-            # 3. Store new alerts if any
-            for alt in alerts:
-                # Check for recent active alert on this settlement to prevent spamming duplicates
-                existing_alert = (
+            # 3. Store or upsert alerts (one active alert per source_node, affected_settlement)
+            dispatched_alerts = []
+            should_broadcast_resolved = False
+
+            if risk_level in ("WARNING", "CRITICAL"):
+                for alt in alerts:
+                    settle_id = alt["affected_settlement_id"]
+                    # Query for any active (unacknowledged) alert for this pair
+                    existing_alert = (
+                        db.query(AlertModel)
+                        .filter(
+                            AlertModel.source_node_id == node_id,
+                            AlertModel.affected_settlement_id == settle_id,
+                            AlertModel.acknowledged == False
+                        )
+                        .first()
+                    )
+
+                    if not existing_alert:
+                        # New alert incident: insert one active alert
+                        new_alert_id = f"ALT-{node_id}-{settle_id}-{int(ts.timestamp())}"
+                        new_alert_rec = AlertModel(
+                            alert_id=new_alert_id,
+                            source_node_id=alt["source_node_id"],
+                            source_node_name=alt["source_node_name"],
+                            affected_settlement_id=alt["affected_settlement_id"],
+                            affected_settlement_name=alt["affected_settlement_name"],
+                            eta_minutes=alt["eta_minutes"],
+                            risk_level=alt["risk_level"],
+                            evacuation_zone=alt.get("evacuation_zone"),
+                            population_at_risk=alt.get("population_at_risk", 0),
+                            created_at=ts,
+                            acknowledged=False
+                        )
+                        db.add(new_alert_rec)
+                        alt_copy = dict(alt)
+                        alt_copy["alert_id"] = new_alert_id
+                        dispatched_alerts.append(alt_copy)
+                    else:
+                        # Alert already active: update severity/eta if changed, but do not insert duplicates
+                        if existing_alert.risk_level != alt["risk_level"]:
+                            existing_alert.risk_level = alt["risk_level"]
+                            existing_alert.eta_minutes = alt["eta_minutes"]
+                            alt_copy = dict(alt)
+                            alt_copy["alert_id"] = existing_alert.alert_id
+                            dispatched_alerts.append(alt_copy)
+            elif risk_level in ("NORMAL", "WATCH"):
+                # If node returned to NORMAL or WATCH, auto-resolve any active alerts from this node
+                active_alerts = (
                     db.query(AlertModel)
                     .filter(
                         AlertModel.source_node_id == node_id,
-                        AlertModel.affected_settlement_id == alt["affected_settlement_id"],
                         AlertModel.acknowledged == False
                     )
-                    .order_by(AlertModel.created_at.desc())
-                    .first()
+                    .all()
                 )
-                if not existing_alert:
-                    new_alert_rec = AlertModel(
-                        alert_id=alt["alert_id"],
-                        source_node_id=alt["source_node_id"],
-                        source_node_name=alt["source_node_name"],
-                        affected_settlement_id=alt["affected_settlement_id"],
-                        affected_settlement_name=alt["affected_settlement_name"],
-                        eta_minutes=alt["eta_minutes"],
-                        risk_level=alt["risk_level"],
-                        evacuation_zone=alt.get("evacuation_zone"),
-                        population_at_risk=alt.get("population_at_risk", 0),
-                        created_at=ts
-                    )
-                    db.add(new_alert_rec)
+                if active_alerts:
+                    for a in active_alerts:
+                        a.acknowledged = True
+                    should_broadcast_resolved = True
 
             db.commit()
         except Exception as ex:
@@ -183,8 +216,12 @@ class MQTTIngestionService:
         # 1. Telemetry & computed metrics
         await dispatcher.dispatch_telemetry(analysis)
         
-        # 2. Downstream alerts
-        if alerts:
-            await dispatcher.dispatch_alerts(alerts)
+        # 2. Downstream alerts (only new or escalated alerts)
+        if dispatched_alerts:
+            await dispatcher.dispatch_alerts(dispatched_alerts)
+
+        # 3. If alerts were auto-resolved when river normalized, notify dashboard
+        if should_broadcast_resolved:
+            await dispatcher.dispatch_resolved(node_id)
 
 mqtt_service = MQTTIngestionService()

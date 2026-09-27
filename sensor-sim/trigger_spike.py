@@ -24,7 +24,7 @@ def main():
     }
 
     topic = "nepal/trishuli/control/spike"
-    print(f"🚀 Injecting simulated flood surge...")
+    print(f"[*] Injecting simulated flood surge...")
     print(f"   Target: {args.node}")
     print(f"   Surge: +{args.water}cm water level, +{args.rain}mm rainfall")
     print(f"   Publishing to: {topic} on {args.broker}:{args.port}")
@@ -35,7 +35,7 @@ def main():
         hostname=args.broker,
         port=args.port
     )
-    print("✅ Flood surge command dispatched! Watch the backend & dashboard cascade.")
+    print("[+] Flood surge command dispatched! Watch the backend & dashboard cascade.")
 
 if __name__ == "__main__":
     main()

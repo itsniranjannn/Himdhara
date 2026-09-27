@@ -106,11 +106,29 @@ export default function App() {
     } else if (packet.type === "NEW_ALERTS") {
       const incomingAlerts = packet.data || [];
       setAlerts((prevAlerts) => {
-        // Prepend new alerts and filter out duplicate alert_ids
-        const existingIds = new Set(prevAlerts.map((a) => a.alert_id));
-        const filteredNew = incomingAlerts.filter((a) => !existingIds.has(a.alert_id));
-        return [...filteredNew, ...prevAlerts].slice(0, 50);
+        // Upsert by (source_node_id + affected_settlement_id) to avoid duplicate rows
+        const alertMap = new Map();
+        // Seed with incoming first (so newer incoming data takes priority)
+        incomingAlerts.forEach((a) => {
+          const key = `${a.source_node_id}_${a.affected_settlement_id}`;
+          alertMap.set(key, { ...a, acknowledged: false });
+        });
+        // Retain existing alerts that don't collide
+        prevAlerts.forEach((a) => {
+          const key = `${a.source_node_id}_${a.affected_settlement_id}`;
+          if (!alertMap.has(key)) {
+            alertMap.set(key, a);
+          }
+        });
+        return Array.from(alertMap.values()).slice(0, 50);
       });
+    } else if (packet.type === "ALERTS_RESOLVED") {
+      const resolvedSourceId = packet.source_node_id;
+      setAlerts((prevAlerts) =>
+        prevAlerts.map((a) =>
+          a.source_node_id === resolvedSourceId ? { ...a, acknowledged: true } : a
+        )
+      );
     }
   }, [selectedNodeId]);
 
@@ -133,7 +151,15 @@ export default function App() {
   const criticalCount = nodes.filter((n) => (latestTelemetryMap[n.node_id]?.risk_level || n.current_risk) === "CRITICAL").length;
   const warningCount = nodes.filter((n) => (latestTelemetryMap[n.node_id]?.risk_level || n.current_risk) === "WARNING").length;
   const activeAlerts = alerts.filter((a) => !a.acknowledged);
-  const totalPopulationAtRisk = activeAlerts.reduce((acc, curr) => acc + (curr.population_at_risk || 0), 0);
+
+  // Deduplicate settlements so each downstream community population is counted exactly once
+  const uniqueSettlementsAtRisk = new Map();
+  activeAlerts.forEach((a) => {
+    if (!uniqueSettlementsAtRisk.has(a.affected_settlement_id)) {
+      uniqueSettlementsAtRisk.set(a.affected_settlement_id, a.population_at_risk || 0);
+    }
+  });
+  const totalPopulationAtRisk = Array.from(uniqueSettlementsAtRisk.values()).reduce((sum, pop) => sum + pop, 0);
 
   return (
     <div className="app-container">

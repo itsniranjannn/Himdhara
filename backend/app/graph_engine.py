@@ -96,7 +96,7 @@ class GraphAlertPropagationEngine:
                 if curr_eta > 45.0 and trigger_risk_level == "WARNING":
                     settlement_risk = "WATCH"
 
-                alert_id = f"ALT-{trigger_node_id}-{curr_id}-{int(datetime.now(timezone.utc).timestamp())}"
+                alert_id = f"ALT-{trigger_node_id}-{curr_id}"
                 
                 affected_settlements.append({
                     "alert_id": alert_id,

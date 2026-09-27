@@ -69,10 +69,10 @@ class SensorNode:
                 self.curr_rainfall = self.base_rainfall + (self.spike_target_rain - self.base_rainfall) * ratio
                 self.curr_soil_moisture = self.base_soil_moisture + (self.spike_target_soil - self.base_soil_moisture) * ratio
             elif progress <= 0.7:
-                # Peak plateau phase with minor turbulence
-                turbulence = random.uniform(-3.0, 3.0)
+                # Peak plateau phase with gentle crest fluctuation
+                turbulence = random.uniform(-0.2, 0.4)
                 self.curr_water_level = self.spike_target_water + turbulence
-                self.curr_rainfall = self.spike_target_rain + random.uniform(-5.0, 5.0)
+                self.curr_rainfall = max(0.0, self.spike_target_rain + random.uniform(-1.5, 1.5))
                 self.curr_soil_moisture = self.spike_target_soil
             elif progress <= 1.0:
                 # Receding tail phase
