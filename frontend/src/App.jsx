@@ -73,7 +73,9 @@ export default function App() {
     if (!nodeId) return;
     try {
       const history = await fetchNodeReadings(nodeId, 35);
-      setSelectedReadings(history);
+      // Explicitly tag each historical reading with nodeId to enforce station isolation
+      const tagged = (history || []).map((r) => ({ ...r, node_id: nodeId }));
+      setSelectedReadings(tagged);
     } catch (err) {
       console.error("Failed to load node history:", err);
     }
@@ -81,6 +83,8 @@ export default function App() {
 
   useEffect(() => {
     if (selectedNodeId) {
+      // Immediately purge previous station's chart array so no stale curve lingers
+      setSelectedReadings([]);
       loadNodeReadings(selectedNodeId);
     }
   }, [selectedNodeId, loadNodeReadings]);
@@ -109,7 +113,9 @@ export default function App() {
       // If this reading belongs to the currently inspected station, append to chart
       if (item.node_id === selectedNodeId) {
         setSelectedReadings((prev) => {
-          const updated = [...prev, item];
+          // Strictly reject any points belonging to a different station
+          const valid = prev.filter((r) => !r.node_id || r.node_id === selectedNodeId);
+          const updated = [...valid, { ...item, node_id: selectedNodeId }];
           return updated.slice(-35); // Keep last 35 points
         });
       }
@@ -145,7 +151,11 @@ export default function App() {
   const { isConnected } = useWebSocket("ws://localhost:8000/ws/stream", handleWebSocketMessage);
 
   const handleSelectNode = (nodeId) => {
-    setSelectedNodeId(nodeId);
+    if (nodeId !== selectedNodeId) {
+      // Immediately reset chart array before state switch
+      setSelectedReadings([]);
+      setSelectedNodeId(nodeId);
+    }
   };
 
   const handleAlertAcknowledged = (alertId) => {
@@ -257,6 +267,7 @@ export default function App() {
           <TelemetryChart
             selectedNode={selectedNode}
             readings={selectedReadings}
+            latestTelemetryMap={latestTelemetryMap}
           />
         </div>
 
@@ -274,6 +285,8 @@ export default function App() {
         <RawDataTable
           nodes={nodes}
           latestTelemetryMap={latestTelemetryMap}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={handleSelectNode}
         />
       </div>
     </div>

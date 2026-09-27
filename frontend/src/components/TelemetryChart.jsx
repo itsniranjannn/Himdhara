@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { TrendingUp, Activity, Droplets } from "lucide-react";
 
-export default function TelemetryChart({ selectedNode, readings }) {
+export default function TelemetryChart({ selectedNode, readings, latestTelemetryMap = {} }) {
   if (!selectedNode) {
     return (
       <div className="glass-panel" style={{ height: "340px", justifyContent: "center", alignItems: "center" }}>
@@ -22,6 +22,11 @@ export default function TelemetryChart({ selectedNode, readings }) {
     );
   }
 
+  // Ensure chart points strictly belong to this selected station
+  const stationReadings = (readings || []).filter(
+    (r) => !r.node_id || r.node_id === selectedNode.node_id
+  );
+
   // Thresholds from node configuration
   const thresholds = selectedNode.thresholds || {};
   const tWatch = thresholds.water_level_watch || 100;
@@ -29,8 +34,10 @@ export default function TelemetryChart({ selectedNode, readings }) {
   const tCrit = thresholds.water_level_critical || 200;
 
   // Format data for recharts
-  const chartData = (readings || []).map((r, idx) => {
-    const timeStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `T-${readings.length - idx}`;
+  const chartData = stationReadings.map((r, idx) => {
+    const timeStr = r.timestamp
+      ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : `T-${stationReadings.length - idx}`;
     return {
       time: timeStr,
       water_level: r.water_level_cm,
@@ -42,7 +49,14 @@ export default function TelemetryChart({ selectedNode, readings }) {
     };
   });
 
-  const latest = readings && readings.length > 0 ? readings[readings.length - 1] : selectedNode.latest_reading || {};
+  // Resolve live telemetry: prioritize live telemetry map for this specific selected station,
+  // then latest station reading from filtered history, then node.latest_reading
+  const live =
+    latestTelemetryMap[selectedNode.node_id] ||
+    (stationReadings.length > 0 ? stationReadings[stationReadings.length - 1] : selectedNode.latest_reading) ||
+    {};
+
+  const liveRisk = live.risk_level || selectedNode.current_risk || "NORMAL";
 
   return (
     <div className="glass-panel" style={{ height: "340px" }}>
@@ -58,25 +72,25 @@ export default function TelemetryChart({ selectedNode, readings }) {
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <span className={`badge-risk ${selectedNode.current_risk || "NORMAL"}`}>
-            {selectedNode.current_risk || "NORMAL"}
+          <span className={`badge-risk ${liveRisk}`}>
+            {liveRisk}
           </span>
         </div>
       </div>
 
-      {/* Real-time stats chips */}
+      {/* Real-time stats chips dynamically bound to selected station */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "10px", flexWrap: "wrap" }}>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          Water Level: <b style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>{latest.water_level_cm ?? "--"} cm</b>
+          Water Level: <b style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>{live.water_level_cm !== undefined ? `${live.water_level_cm} cm` : "--"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          EMA Baseline: <b style={{ color: "#34d399", fontFamily: "var(--font-mono)" }}>{latest.ema_water_level ?? "--"} cm</b>
+          EMA Baseline: <b style={{ color: "#34d399", fontFamily: "var(--font-mono)" }}>{live.ema_water_level !== undefined ? `${live.ema_water_level} cm` : "--"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          Surge Rate: <b style={{ color: "#fb923c", fontFamily: "var(--font-mono)" }}>{latest.rate_of_change_cm_min ?? "0.0"} cm/min</b>
+          Surge Rate: <b style={{ color: "#fb923c", fontFamily: "var(--font-mono)" }}>{live.rate_of_change_cm_min !== undefined ? `${live.rate_of_change_cm_min} cm/min` : "0.0 cm/min"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          HSI Stress Score: <b style={{ color: latest.hsi_score >= 3 ? "#f87171" : "#a78bfa", fontFamily: "var(--font-mono)" }}>{latest.hsi_score ?? "0.0"}</b>
+          HSI Stress Score: <b style={{ color: (live.hsi_score ?? 0) >= 3 ? "#f87171" : "#a78bfa", fontFamily: "var(--font-mono)" }}>{live.hsi_score !== undefined ? live.hsi_score : "0.0"}</b>
         </div>
       </div>
 

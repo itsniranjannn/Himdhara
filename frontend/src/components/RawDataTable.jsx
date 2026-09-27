@@ -1,7 +1,7 @@
 import React from "react";
 import { Database, Filter } from "lucide-react";
 
-export default function RawDataTable({ nodes, latestTelemetryMap }) {
+export default function RawDataTable({ nodes, latestTelemetryMap, selectedNodeId, onSelectNode }) {
   return (
     <div className="glass-panel" style={{ marginTop: "20px" }}>
       <div className="panel-header">
@@ -10,7 +10,7 @@ export default function RawDataTable({ nodes, latestTelemetryMap }) {
           <span>REAL-TIME SENSOR TELEMETRY & ALGORITHM AUDIT LOG</span>
         </div>
         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-          MODULE C ANALYTICAL VERIFICATION
+          MODULE C ANALYTICAL VERIFICATION • CLICK ROW TO INSPECT
         </span>
       </div>
 
@@ -41,17 +41,25 @@ export default function RawDataTable({ nodes, latestTelemetryMap }) {
               nodes.map((n) => {
                 const live = latestTelemetryMap[n.node_id] || n.latest_reading || {};
                 const risk = live.risk_level || n.current_risk || "NORMAL";
+                const isSelected = n.node_id === selectedNodeId;
 
                 return (
                   <tr
                     key={n.node_id}
+                    onClick={() => onSelectNode && onSelectNode(n.node_id)}
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.03)",
-                      background: risk === "CRITICAL" ? "rgba(239, 68, 68, 0.08)" : "transparent"
+                      background: isSelected
+                        ? "rgba(56, 189, 248, 0.12)"
+                        : risk === "CRITICAL"
+                        ? "rgba(239, 68, 68, 0.08)"
+                        : "transparent",
+                      cursor: onSelectNode ? "pointer" : "default",
+                      transition: "background 0.15s"
                     }}
                   >
-                  <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--accent-cyan)" }}>
-                    {n.node_id}
+                  <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: isSelected ? "#38bdf8" : "var(--accent-cyan)", fontWeight: isSelected ? 700 : 400 }}>
+                    {isSelected ? `▶ ${n.node_id}` : n.node_id}
                   </td>
                   <td style={{ padding: "8px 12px", fontWeight: 600 }}>{n.name}</td>
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)" }}>
