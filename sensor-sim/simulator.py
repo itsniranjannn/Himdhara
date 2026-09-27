@@ -39,6 +39,7 @@ class SensorNode:
 
         # Spike simulation state
         self.in_spike = False
+        self.in_recession = False
         self.spike_target_water = 0.0
         self.spike_target_rain = 0.0
         self.spike_target_soil = 0.0
@@ -50,6 +51,7 @@ class SensorNode:
         print(f"\n[!] [SPIKE TRIGGERED] Station: {self.name} ({self.node_id})")
         print(f"    Surge Parameters: +{water_surge}cm water level, +{rain_surge}mm rainfall, +{soil_surge}% soil moisture\n")
         self.in_spike = True
+        self.in_recession = False
         self.spike_target_water = self.base_water_level + water_surge
         self.spike_target_rain = self.base_rainfall + rain_surge
         self.spike_target_soil = min(98.0, self.base_soil_moisture + soil_surge)
@@ -62,32 +64,49 @@ class SensorNode:
             self.spike_step += 1
             progress = self.spike_step / self.spike_total_steps
 
-            if progress <= 0.4:
+            if progress <= 0.35:
                 # Rapid upward surge phase
-                ratio = progress / 0.4
+                ratio = progress / 0.35
                 self.curr_water_level = self.base_water_level + (self.spike_target_water - self.base_water_level) * ratio
                 self.curr_rainfall = self.base_rainfall + (self.spike_target_rain - self.base_rainfall) * ratio
                 self.curr_soil_moisture = self.base_soil_moisture + (self.spike_target_soil - self.base_soil_moisture) * ratio
-            elif progress <= 0.7:
-                # Peak plateau phase with gentle crest fluctuation
+            elif progress <= 1.0:
+                # Peak plateau phase with gentle crest fluctuation (sustains critical classification)
                 turbulence = random.uniform(-0.2, 0.4)
                 self.curr_water_level = self.spike_target_water + turbulence
                 self.curr_rainfall = max(0.0, self.spike_target_rain + random.uniform(-1.5, 1.5))
                 self.curr_soil_moisture = self.spike_target_soil
-            elif progress <= 1.0:
-                # Receding tail phase
-                decay = (1.0 - progress) / 0.3
-                self.curr_water_level = self.base_water_level + (self.spike_target_water - self.base_water_level) * decay
-                self.curr_rainfall = self.base_rainfall + (self.spike_target_rain - self.base_rainfall) * decay
-                self.curr_soil_moisture = self.base_soil_moisture + (self.spike_target_soil - self.base_soil_moisture) * decay
             else:
-                # Spike ended, return to normal
+                # Spike crest completed: transition into gradual exponential decay recession
                 self.in_spike = False
+                self.in_recession = True
+                print(f"[*] [SPIKE CREST COMPLETE] Station: {self.name} ({self.node_id}) entering gradual recession limb.\n")
+
+        if self.in_recession:
+            excess_water = self.curr_water_level - self.base_water_level
+            if excess_water > 1.2:
+                # Gradual exponential decay: clamp drop per 5s tick so rate of change stays within roughly -5 to -50 cm/min
+                # Rate = drop * 12 cm/min. Drop between 0.8cm and 3.8cm yields rate between -9.6 and -45.6 cm/min.
+                decay_drop = max(0.8, min(3.8, excess_water * 0.18))
+                self.curr_water_level -= decay_drop
+            else:
                 self.curr_water_level = self.base_water_level
-                self.curr_rainfall = self.base_rainfall
-                self.curr_soil_moisture = self.base_soil_moisture
+                self.in_recession = False
                 print(f"[OK] [SPIKE RECEDED] Station: {self.name} ({self.node_id}) returned to baseline.\n")
-        else:
+
+            excess_rain = self.curr_rainfall - self.base_rainfall
+            if excess_rain > 0.5:
+                self.curr_rainfall -= max(0.5, excess_rain * 0.25)
+            else:
+                self.curr_rainfall = self.base_rainfall
+
+            excess_soil = self.curr_soil_moisture - self.base_soil_moisture
+            if excess_soil > 0.5:
+                self.curr_soil_moisture -= max(0.3, excess_soil * 0.10)
+            else:
+                self.curr_soil_moisture = self.base_soil_moisture
+
+        if not self.in_spike and not self.in_recession:
             # Realistic baseline micro-fluctuation (Brownian walk within bounds)
             self.curr_water_level += random.uniform(-0.8, 0.8)
             self.curr_water_level = max(self.base_water_level * 0.85, min(self.base_water_level * 1.25, self.curr_water_level))
