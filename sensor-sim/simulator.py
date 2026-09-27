@@ -6,6 +6,12 @@ import sys
 import time
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
+
+# Load .env if present
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+load_dotenv()
 
 # Path to shared river topology
 TOPOLOGY_PATH = os.path.abspath(
@@ -175,7 +181,7 @@ class RiverNetworkSimulator:
                     
                     # Print one-line status
                     spike_badge = " [SURGE ACTIVE]" if node.in_spike else ""
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] {node_id} | Water: {reading['water_level_cm']}cm | Rain: {reading['rainfall_mm']}mm | Soil: {reading['soil_moisture_pct']}%{spike_badge}")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] {node_id} | Water: {reading['water_level_cm']}cm | Rain: {reading['rainfall_mm']}mm | Soil: {reading['soil_moisture_pct']}%{spike_badge}", flush=True)
 
                 time.sleep(self.interval_sec)
         except KeyboardInterrupt:

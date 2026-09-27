@@ -7,10 +7,25 @@
 
 ## 1. Executive Summary
 An end-to-end distributed early warning system with real-time IoT sensor simulation, non-blackbox analytical anomaly detection (EMA + Rate of change + Hydrological Stress Index), Dijkstra graph-based alert propagation routing for downstream settlements, and a live React-Leaflet GIS emergency operations dashboard.
+Connected to **Supabase PostgreSQL** cloud database and streaming live telemetry over **HiveMQ MQTT**.
 
 ---
 
-## 2. Tasks Completed
+## 2. Recent Updates & Fixes (September 27, 2026)
+1. **Map Basemap Keyless Fix ([RiverMap.jsx](file:///c:/Users/ASUS/Documents/8thsemproj/frontend/src/components/RiverMap.jsx)):**
+   - Replaced retired CartoDB direct tiles (which caused "API KEY REQUIRED" watermarks) with the standard free, keyless **OpenStreetMap** tile layer (`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`).
+   - Added custom high-contrast dark theme CSS filter in [index.css](file:///c:/Users/ASUS/Documents/8thsemproj/frontend/src/index.css) to preserve the Operations Center dark aesthetic.
+   - Preserved correct OpenStreetMap attribution link per usage policy.
+2. **Simulator & Supabase Telemetry Pipeline Active:**
+   - Integrated `python-dotenv` into [config.py](file:///c:/Users/ASUS/Documents/8thsemproj/backend/app/config.py) and [simulator.py](file:///c:/Users/ASUS/Documents/8thsemproj/sensor-sim/simulator.py) to reliably load the Supabase connection string from `.env`.
+   - Verified MQTT broker alignment: both backend and simulator connect to `broker.hivemq.com:1883` on topic `nepal/trishuli/sensors/#`.
+   - Successfully running [simulator.py](file:///c:/Users/ASUS/Documents/8thsemproj/sensor-sim/simulator.py) with unbuffered output (`flush=True`).
+   - Verified row growth in Supabase `sensor_readings` table (over 150+ rows actively inserted and climbing).
+   - Added `/api/stats` endpoint and updated [App.jsx](file:///c:/Users/ASUS/Documents/8thsemproj/frontend/src/App.jsx) to initialize counters directly from database totals.
+
+---
+
+## 3. Tasks Completed
 
 | Module | Component | Description | Status |
 |---|---|---|---|

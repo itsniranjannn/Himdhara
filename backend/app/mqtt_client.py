@@ -111,6 +111,7 @@ class MQTTIngestionService:
         )
 
         risk_level = analysis["risk_level"]
+        print(f"[+] [MQTT Ingested] {node_id} | Water: {water_level:.1f}cm | Rain: {rainfall:.1f}mm | Soil: {soil_moisture:.1f}% | Risk: {risk_level}", flush=True)
         alerts = []
 
         # --- Module D: Run Graph Alert Propagation Engine if threshold crossed ---

@@ -221,6 +221,11 @@ body {
   background: #090e17 !important;
 }
 
+/* Dark mode styling for OpenStreetMap tiles */
+.map-container-wrapper .leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
 /* Risk Badges */
 .badge-risk {
   padding: 4px 10px;

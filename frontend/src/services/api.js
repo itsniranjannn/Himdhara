@@ -12,6 +12,12 @@ export async function fetchTopology() {
   return res.json();
 }
 
+export async function fetchStats() {
+  const res = await fetch(`${API_BASE}/stats`);
+  if (!res.ok) throw new Error("Failed to fetch stats");
+  return res.json();
+}
+
 export async function fetchNodeReadings(nodeId, limit = 40) {
   const res = await fetch(`${API_BASE}/nodes/${nodeId}/readings?limit=${limit}`);
   if (!res.ok) throw new Error(`Failed to fetch readings for ${nodeId}`);

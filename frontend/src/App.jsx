@@ -21,14 +21,18 @@ export default function App() {
   // 1. Initial Data Fetch
   const loadInitialData = async () => {
     try {
-      const [nodesData, topoData, alertsData] = await Promise.all([
+      const [nodesData, topoData, alertsData, statsData] = await Promise.all([
         fetchNodes(),
         fetchTopology(),
-        fetchAlerts()
+        fetchAlerts(),
+        fetchStats().catch(() => ({ total_readings: 0 }))
       ]);
       setNodes(nodesData);
       setTopology(topoData);
       setAlerts(alertsData);
+      if (statsData && statsData.total_readings !== undefined) {
+        setReadingCounter(statsData.total_readings);
+      }
       if (nodesData.length > 0 && !selectedNodeId) {
         setSelectedNodeId(nodesData[0].node_id);
       }

@@ -79,6 +79,15 @@ def health_check():
         "active_clients": len(dispatcher.active_connections)
     }
 
+@app.get("/api/stats")
+def get_stats(db: Session = Depends(get_db)):
+    """Returns database telemetry counters and metrics."""
+    return {
+        "total_readings": db.query(SensorReadingModel).count(),
+        "total_nodes": db.query(NodeModel).count(),
+        "active_alerts": db.query(AlertModel).filter(AlertModel.acknowledged == False).count()
+    }
+
 @app.get("/api/network/topology")
 def get_topology():
     """Returns the complete river topology graph for visualization."""

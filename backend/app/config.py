@@ -1,5 +1,12 @@
 import os
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Automatically load .env from backend/ or project root
+_curr_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(dotenv_path=os.path.join(_curr_dir, "..", ".env"))
+load_dotenv(dotenv_path=os.path.join(_curr_dir, "..", "..", ".env"))
+load_dotenv()
 
 class Settings(BaseModel):
     PROJECT_NAME: str = "Flood & Landslide Early Warning System"
