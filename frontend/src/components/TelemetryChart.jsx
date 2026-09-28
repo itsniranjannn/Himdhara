@@ -28,6 +28,23 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
     return String(r.node_id).trim() === String(selectedNode.node_id).trim();
   });
 
+  // Limit chart history to the most recent ~5 minutes of readings relative to the latest point
+  // to avoid connecting across large time gaps (e.g. server restart after hours)
+  const timestamps = stationReadings
+    .map((r) => (r.timestamp ? new Date(r.timestamp).getTime() : NaN))
+    .filter((t) => !isNaN(t));
+
+  let recentReadings = stationReadings;
+  if (timestamps.length > 0) {
+    const latestTime = Math.max(...timestamps);
+    const windowMs = 5 * 60 * 1000; // 5 minutes window
+    recentReadings = stationReadings.filter((r) => {
+      if (!r.timestamp) return true;
+      const t = new Date(r.timestamp).getTime();
+      return !isNaN(t) && (latestTime - t) <= windowMs;
+    });
+  }
+
   // Thresholds from node configuration
   const thresholds = selectedNode.thresholds || {};
   const tWatch = thresholds.water_level_watch || 100;
@@ -38,14 +55,14 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
   // then latest station reading from filtered history, then node.latest_reading
   const live =
     latestTelemetryMap[selectedNode.node_id] ||
-    (stationReadings.length > 0 ? stationReadings[stationReadings.length - 1] : selectedNode.latest_reading) ||
+    (recentReadings.length > 0 ? recentReadings[recentReadings.length - 1] : selectedNode.latest_reading) ||
     {};
 
   // Format data for recharts
   // If station readings array is empty but live telemetry exists, provide live reading as baseline curve
   const pointsToRender =
-    stationReadings.length > 0
-      ? stationReadings
+    recentReadings.length > 0
+      ? recentReadings
       : (live.water_level_cm !== undefined ? [{ ...live, node_id: selectedNode.node_id }] : []);
 
   const chartData = pointsToRender.map((r, idx) => {
@@ -58,7 +75,7 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
       ema: r.ema_water_level !== null && r.ema_water_level !== undefined ? (typeof r.ema_water_level === "number" ? r.ema_water_level : parseFloat(r.ema_water_level)) : undefined,
       rainfall: typeof r.rainfall_mm === "number" ? r.rainfall_mm : parseFloat(r.rainfall_mm) || 0,
       soil: typeof r.soil_moisture_pct === "number" ? r.soil_moisture_pct : parseFloat(r.soil_moisture_pct) || 0,
-      hsi: typeof r.hsi_score === "number" ? r.hsi_score : parseFloat(r.hsi_score) || 0,
+      hsi: typeof r.hsi_score === "number" ? Number(r.hsi_score.toFixed(2)) : parseFloat(r.hsi_score) || 0,
       rate: typeof r.rate_of_change_cm_min === "number" ? r.rate_of_change_cm_min : parseFloat(r.rate_of_change_cm_min) || 0
     };
   });
@@ -97,7 +114,9 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
           Surge Rate: <b style={{ color: "#fb923c", fontFamily: "var(--font-mono)" }}>{live.rate_of_change_cm_min !== undefined ? `${live.rate_of_change_cm_min} cm/min` : "0.0 cm/min"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          HSI Stress Score: <b style={{ color: (live.hsi_score ?? 0) >= 3 ? "#f87171" : "#a78bfa", fontFamily: "var(--font-mono)" }}>{live.hsi_score !== undefined ? live.hsi_score : "0.0"}</b>
+          HSI Stress Score: <b style={{ color: (live.hsi_score ?? 0) >= 3 ? "#f87171" : "#a78bfa", fontFamily: "var(--font-mono)" }}>
+            {live.hsi_score !== undefined && live.hsi_score !== null ? Number(live.hsi_score).toFixed(2) : "0.00"}
+          </b>
         </div>
       </div>
 
@@ -113,6 +132,12 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
                 borderColor: "#334155",
                 borderRadius: "8px",
                 fontSize: "0.8rem"
+              }}
+              formatter={(value, name) => {
+                if (typeof value === "number") {
+                  return [value.toFixed(2), name];
+                }
+                return [value, name];
               }}
             />
 

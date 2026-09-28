@@ -1,7 +1,38 @@
-import React from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import React, { useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import { MapPin, AlertCircle, Home } from "lucide-react";
+
+// Automatically calls fitBounds on all station coordinates on initial load so the full basin is visible
+function AutoFitBounds({ nodes, settlements }) {
+  const map = useMap();
+  const hasFittedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasFittedRef.current) return;
+
+    const stationCoords = (nodes || [])
+      .filter((n) => n.lat && n.lng)
+      .map((n) => [n.lat, n.lng]);
+
+    const settlementCoords = (settlements || [])
+      .filter((s) => s.lat && s.lng)
+      .map((s) => [s.lat, s.lng]);
+
+    const allCoords = [...stationCoords, ...settlementCoords];
+
+    if (allCoords.length > 0) {
+      const bounds = L.latLngBounds(allCoords);
+      map.fitBounds(bounds, {
+        padding: [25, 25],
+        maxZoom: 12
+      });
+      hasFittedRef.current = true;
+    }
+  }, [nodes, settlements, map]);
+
+  return null;
+}
 
 // Helper to create custom SVG div icons based on station risk status
 function createStationIcon(riskLevel, isSelected) {
@@ -119,6 +150,9 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
           maxZoom={19}
         />
 
+        {/* Auto fit all station & settlement coordinates on initial load */}
+        <AutoFitBounds nodes={nodes} settlements={settlements} />
+
         {/* Draw River reaches & flow paths */}
         {reaches.map((reach) => (
           <Polyline
@@ -161,6 +195,9 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                       <div>Water: <b>{live.water_level_cm} cm</b></div>
                       <div>Rainfall: <b>{live.rainfall_mm} mm</b></div>
                       <div>Soil Sat: <b>{live.soil_moisture_pct} %</b></div>
+                      {live.hsi_score !== undefined && live.hsi_score !== null && (
+                        <div>HSI Score: <b>{Number(live.hsi_score).toFixed(2)}</b></div>
+                      )}
                     </div>
                   )}
                   <button

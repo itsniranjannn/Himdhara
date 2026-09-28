@@ -78,7 +78,9 @@ export default function RawDataTable({ nodes, latestTelemetryMap, selectedNodeId
                     {live.soil_moisture_pct ? `${live.soil_moisture_pct}%` : "--"}
                   </td>
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                    {live.hsi_score !== undefined ? live.hsi_score : "--"}
+                    {live.hsi_score !== undefined && live.hsi_score !== null
+                      ? Number(live.hsi_score).toFixed(2)
+                      : "--"}
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     <span className={`badge-risk ${risk}`}>{risk}</span>

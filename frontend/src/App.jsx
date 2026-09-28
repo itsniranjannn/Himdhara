@@ -77,7 +77,7 @@ export default function App() {
   const loadNodeReadings = useCallback(async (nodeId) => {
     if (!nodeId) return;
     try {
-      const history = await fetchNodeReadings(nodeId, 35);
+      const history = await fetchNodeReadings(nodeId, 60);
       // Explicitly tag each historical reading with nodeId to enforce station isolation
       const tagged = (history || []).map((r) => ({ ...r, node_id: nodeId }));
       // Guard against race conditions: only update if user is still on this node
@@ -125,7 +125,7 @@ export default function App() {
           // Strictly reject any points belonging to a different station
           const valid = prev.filter((r) => !r.node_id || r.node_id === currentSelectedId);
           const updated = [...valid, { ...item, node_id: currentSelectedId }];
-          return updated.slice(-35); // Keep last 35 points
+          return updated.slice(-60); // Keep up to 60 points (~5 mins at 5s interval)
         });
       }
     } else if (packet.type === "NEW_ALERTS") {
