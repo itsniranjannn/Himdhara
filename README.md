@@ -637,6 +637,20 @@ The interface also provides a persisted light theme and follows the system prefe
 - The landing page is lazy-loaded so the operations bundle does not pay the cost of the public presentation until it is requested.
 - The footer identifies the current React, FastAPI, MQTT, and Leaflet stack; project credits remain a replaceable placeholder.
 
+### Screenshots
+
+The final browser verification captures are in [`docs/screenshots/`](docs/screenshots/):
+
+- `landing-hero-dark.png` and `landing-hero-light.png` — public hero in both themes.
+- `landing-pipeline-dark.png` — animated Sensor → MQTT → Analysis → Routing → Alerts pipeline.
+- `monitor-idle-light.png` — six-station idle monitor.
+- `monitor-critical-dark.png` and `monitor-critical-light.png` — live spike state with CRITICAL station and downstream routes.
+- `alerts-dark.png`, `incidents-dark.png`, and `configuration-dark.png` — operations surfaces.
+- `bulletin-alert-dark.png` — public bulletin during an active alert.
+- `mobile-bulletin-dark.png` — narrow mobile bulletin with no horizontal overflow.
+
+Screenshots are captured from the rendered app viewport only; browser chrome and personal bookmarks are excluded.
+
 ## Testing and verification
 
 ### Backend
@@ -657,11 +671,12 @@ npm run lint
 
 ### Verified current state
 
-- Backend suite: **10 tests passed**.
+- Backend suite: **12 tests passed**.
 - Frontend production build: **passed**.
-- Frontend lint: **passed with non-blocking React effect/purity warnings**.
-- Modified frontend files: no editor diagnostics.
-- Browser verification: WebSocket live, six fresh station timestamps, modal layering above Leaflet, clean public bulletin text, and stable alert upsert behavior.
+- Frontend lint: **passed with zero warnings**.
+- Vite build emitted no chunk-size warning after lazy-loading the landing page; the largest generated JavaScript asset is approximately 415 kB minified.
+- Browser verification: landing page, both themes, desktop and mobile layouts, six fresh station timestamps, real Demo spike to CRITICAL, five ETA-sorted downstream routes, alert bulletin state, modal layering above Leaflet, route redirects, and stable alert upsert behavior.
+- `start_all.ps1` now anchors all child processes to the repository root and opens the public landing page at `/`.
 
 ## Troubleshooting
 
