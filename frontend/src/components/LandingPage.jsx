@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { motion, useInView, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Radio, ShieldCheck, Waves } from "lucide-react";
 import Logo from "./Logo";
 import { fetchHealth } from "../services/api";
@@ -21,19 +22,10 @@ const pipeline = [
 ];
 
 function Reveal({ children, className = "" }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { threshold: 0.12 });
-    const element = document.querySelector(`[data-reveal="${CSS.escape(className)}"]`);
-    if (element) observer.observe(element);
-    return () => observer.disconnect();
-  }, [className]);
-  return <div data-reveal={className} className={`landing-reveal ${visible ? "is-visible" : ""} ${className}`}>{children}</div>;
+  const ref = React.useRef(null);
+  const visible = useInView(ref, { once: true, amount: 0.12 });
+  const reducedMotion = useReducedMotion();
+  return <motion.div ref={ref} className={`landing-reveal ${className}`} initial={reducedMotion ? false : { opacity: 0, y: 22 }} animate={visible || reducedMotion ? { opacity: 1, y: 0 } : undefined} transition={{ duration: .7, ease: [0.16, 1, 0.3, 1] }}>{children}</motion.div>;
 }
 
 function CountUp({ value, suffix = "" }) {
@@ -68,6 +60,20 @@ function ContourField() {
   </svg>;
 }
 
+function ParallaxContours() {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const offsetX = useTransform(x, [-1, 1], [-12, 12]);
+  const offsetY = useTransform(y, [-1, 1], [-8, 8]);
+  const reducedMotion = useReducedMotion();
+  return <motion.div className="landing-contour-layer" style={reducedMotion ? undefined : { x: offsetX, y: offsetY }} onPointerMove={(event) => {
+    if (reducedMotion) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    x.set((event.clientX - bounds.left) / bounds.width * 2 - 1);
+    y.set((event.clientY - bounds.top) / bounds.height * 2 - 1);
+  }} onPointerLeave={() => { x.set(0); y.set(0); }}><ContourField /></motion.div>;
+}
+
 export default function LandingPage({ nodes = [], settlements = [], live = {}, onNavigate }) {
   const [health, setHealth] = useState({ status: "checking", message: "Connecting to the basin network" });
   const [wave, setWave] = useState(false);
@@ -81,6 +87,7 @@ export default function LandingPage({ nodes = [], settlements = [], live = {}, o
     return () => { cancelled = true; };
   }, [stationList.length, hasRisk]);
   const navigate = (path) => onNavigate(path);
+  const reducedMotion = useReducedMotion();
   return <div className="landing-page">
     <header className="landing-nav">
       <a href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }}><Logo variant="full" /></a>
@@ -92,7 +99,7 @@ export default function LandingPage({ nodes = [], settlements = [], live = {}, o
 
     <main>
       <section className="landing-hero">
-        <ContourField />
+        <ParallaxContours />
         <div className="landing-hero-copy">
           <div className={`live-chip ${health.status}`}><span /> {health.message}</div>
           <p className="eyebrow">TRISHULI · BHOTEKOSHI BASIN</p>
@@ -101,14 +108,14 @@ export default function LandingPage({ nodes = [], settlements = [], live = {}, o
           <div className="landing-hero-ctas"><button className="landing-primary large" onClick={() => navigate("/app/monitor")}>Open dashboard <ArrowRight size={17} /></button><button className="landing-secondary" onClick={() => navigate("/bulletin")}>View public bulletin <ArrowDownRight size={17} /></button></div>
           <div className="landing-trust"><Radio size={15} /><span>Live telemetry · explainable risk · local response</span></div>
         </div>
-        <div className="hero-signal"><div className="signal-orbit orbit-one" /><div className="signal-orbit orbit-two" /><div className="signal-core"><Waves size={32} /><span>EARLY<br />WARNING</span></div></div>
+        <motion.div className="hero-signal" animate={reducedMotion ? undefined : { y: [0, -7, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}><div className="signal-orbit orbit-one" /><div className="signal-orbit orbit-two" /><div className="signal-core"><Waves size={32} /><span>EARLY<br />WARNING</span></div></motion.div>
       </section>
 
       <Reveal className="landing-section intro-strip"><p>Built for the seconds between a changing river and a community that needs to know.</p><span>Operational clarity, from sensor to settlement.</span></Reveal>
 
       <Reveal className="landing-section"><div id="how-it-works" className="section-anchor" /><div className="section-heading"><p className="eyebrow">01 · THE SIGNAL PATH</p><h2>From a reading<br />to a response.</h2><p>Every warning follows a visible chain. No black boxes. No disconnected dashboards.</p></div><div className="pipeline">{pipeline.map(([number, title, description], index) => <div className="pipeline-step" key={title} style={{ "--step": index }}><div className="pipeline-number">{number}</div><div className="pipeline-icon"><span /></div><h3>{title}</h3><p>{description}</p>{index < pipeline.length - 1 && <ArrowRight className="pipeline-arrow" size={18} />}</div>)}</div></Reveal>
 
-      <Reveal className="landing-section network-section"><div id="network" className="section-anchor" /><div className="section-heading split"><div><p className="eyebrow">02 · LIVE NETWORK</p><h2>One basin.<br /><em>Six listening points.</em></h2></div><p>Station readings update continuously. The preview below is visual only; the operations dashboard remains the source of truth.</p></div><div className="network-preview"><div className="network-river" /><div className="network-stations">{stationList.map(([label, id], index) => { const reading = live[id]?.water_level_cm ?? nodes.find((node) => node.node_id === id)?.latest_reading?.water_level_cm ?? ["46.1", "66.4", "85.1", "96.3", "65.9", "96.7"][index]; return <div className={`network-station ${wave ? "wave-active" : ""}`} style={{ "--station-index": index }} key={id}><span className="station-pulse" /><strong>{label}</strong><code>{Number(reading).toFixed(1)} cm</code></div>; })}</div><button className={`wave-button ${wave ? "playing" : ""}`} onClick={() => { setWave(true); window.setTimeout(() => setWave(false), 3400); }} disabled={wave}>{wave ? "Flood wave moving downstream" : "Play flood-wave preview"} <ArrowRight size={15} /></button></div></Reveal>
+      <Reveal className="landing-section network-section"><div id="network" className="section-anchor" /><div className="section-heading split"><div><p className="eyebrow">02 · LIVE NETWORK</p><h2>One basin.<br /><em>Six listening points.</em></h2></div><p>Station readings update continuously. The preview below is visual only; the operations dashboard remains the source of truth.</p></div><div className="network-preview"><div className="network-river" /><div className="network-stations">{stationList.map(([label, id], index) => { const reading = live[id]?.water_level_cm ?? nodes.find((node) => node.node_id === id)?.latest_reading?.water_level_cm ?? ["46.1", "66.4", "85.1", "96.3", "65.9", "96.7"][index]; return <div className={`network-station ${wave ? "wave-active" : ""}`} style={{ "--station-index": index }} key={id}><span className="station-pulse" /><strong>{label}</strong><code>{Number(reading).toFixed(1)} cm</code></div>; })}</div><div className="network-settlements">{["Dhunche · 18 min", "Syaprubesi · 12 min", "Betrawati · 7 min", "Trishuli · 4 min"].map((label, index) => <span key={label} style={{ "--settlement-index": index }}>{label}</span>)}</div><button className={`wave-button ${wave ? "playing" : ""}`} onClick={() => { setWave(true); window.setTimeout(() => setWave(false), 3400); }} disabled={wave}>{wave ? "Flood wave moving downstream" : "Play flood-wave preview"} <ArrowRight size={15} /></button></div></Reveal>
 
       <Reveal className="landing-section numbers-section"><div className="number-item"><strong><CountUp value={stationList.length} /></strong><span>stations listening</span></div><div className="number-item"><strong><CountUp value={5} suffix="s" /></strong><span>update interval</span></div><div className="number-item"><strong><CountUp value={settlements.length || 4} /></strong><span>settlements covered</span></div><div className="number-item"><strong><CountUp value={4} /></strong><span>alert lifecycle steps</span></div></Reveal>
 
@@ -116,6 +123,6 @@ export default function LandingPage({ nodes = [], settlements = [], live = {}, o
 
       <Reveal className="landing-section safety-section"><div id="safety" className="section-anchor" /><div className="safety-mark"><ShieldCheck size={28} /></div><div><p className="eyebrow">04 · WHEN A WARNING ARRIVES</p><h2>Know the next<br /><em>safe step.</em></h2><p>Move to higher ground when instructed. Take medicines, documents and water. Follow local responders and use the public bulletin for current settlement guidance.</p><button className="landing-secondary" onClick={() => navigate("/bulletin")}>Open safety bulletin <ArrowRight size={15} /></button></div></Reveal>
     </main>
-    <footer className="landing-footer"><Logo variant="full" /><span>Trishuli Flood & Landslide Early Warning System</span><button onClick={() => navigate("/app/monitor")}>Operations dashboard <ArrowRight size={14} /></button></footer>
+    <footer className="landing-footer"><Logo variant="full" /><div><span>Trishuli Flood & Landslide Early Warning System</span><small>React · FastAPI · MQTT · Leaflet · Open source project</small></div><span className="landing-credit">Credits: project team placeholder</span><button onClick={() => navigate("/app/monitor")}>Operations dashboard <ArrowRight size={14} /></button></footer>
   </div>;
 }

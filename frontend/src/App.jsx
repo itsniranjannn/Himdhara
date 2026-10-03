@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import RiverMap from "./components/RiverMap";
 import Logo from "./components/Logo";
-import LandingPage from "./components/LandingPage";
 import { fetchAlerts, fetchIncidents, fetchNodeReadings, fetchNodes, fetchSettlements, fetchStats, fetchTopology, login, updateSettlement, updateThresholds } from "./services/api";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { triggerSpike } from "./services/api";
@@ -20,6 +19,7 @@ const fallbackNodes = [
   { node_id: "NODE_TRISHULI_06", name: "Trishuli Hydropower Headworks", lat: 27.87, lng: 85.17, current_risk: "NORMAL" }
 ];
 const legacyRoutes = { "/monitor": "/app/monitor", "/alerts": "/app/alerts", "/incidents": "/app/incidents", "/configuration": "/app/configuration", "/public": "/bulletin" };
+const LandingPage = React.lazy(() => import("./components/LandingPage"));
 
 const names = ["Betrawati Market & Riverbank Settlement", "Syaprubesi Bazaar", "Trishuli Bazaar & Hydropower Colony", "Dhunche Town & District Hospital"];
 const sampleAlerts = names.map((name, index) => ({
@@ -53,7 +53,7 @@ function Shell({ page, setPage, children, onDemo, isConnected, activeAlertCount,
     </aside>
     <main className="content">
       <header className="topbar"><button className="mobile-menu" aria-label="Open navigation"><Menu size={18} /></button><h1>{(page === "/bulletin" ? "Public bulletin" : page.slice(5).replace("-", " ")).replace(/^\w/, (letter) => letter.toUpperCase())}</h1><div className="top-status"><span><i className="connected-dot" /> MQTT connected</span><span><i className={isConnected ? "connected-dot" : ""} /> WebSocket {isConnected ? "live" : "reconnecting"}</span><span>Last reading 0s ago</span><Bell size={14} /><span>{activeAlertCount} active</span><button className="demo-button" onClick={onToggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}</button><button className="demo-button" onClick={onDemo}>Demo</button>{session ? <span className="user-chip"><span className="avatar">{session.username[0].toUpperCase()}</span><strong>{session.username}</strong><small>{session.role}</small><button className="signout-button" onClick={onSignOut}>Sign out</button></span> : <button className="demo-button" onClick={onSignIn}>Sign in</button>}</div></header>
-      {children}
+      <div key={page} className="route-transition">{children}</div>
     </main>
   </div>;
 }
@@ -219,6 +219,6 @@ export default function App() {
   const navigate = useCallback((path) => { window.history.pushState({}, "", path); startTransition(() => setPage(path)); }, []);
   const pageContent = useMemo(() => page === "/" ? <LandingPage nodes={nodes} settlements={settlements} live={live} onNavigate={navigate} /> : page === "/app/alerts" ? <AlertsPage alerts={alerts} /> : page === "/app/incidents" ? <IncidentsPage incidents={incidents} /> : page === "/app/configuration" ? <ConfigurationPage nodes={nodes} settlements={settlements} setSettlements={setSettlements} /> : page === "/bulletin" ? <PublicPage nodes={nodes} alerts={alerts.filter((alert) => !alert.acknowledged)} /> : <MonitorPage theme={theme} nodes={nodes} topology={topology} live={live} selectedNode={selectedNode} setSelectedNode={setSelectedNode} readings={readings} stats={stats} alerts={alerts} />, [page, nodes, topology, live, selectedNode, readings, stats, alerts, incidents, settlements, theme, navigate]);
   const signOut = () => { localStorage.removeItem("trishuli-session"); setSession(null); };
-  if (page === "/") return pageContent;
+  if (page === "/") return <React.Suspense fallback={<div className="landing-loading" aria-label="Loading public landing page"><span /><span /><span /></div>}><div className="route-transition">{pageContent}</div></React.Suspense>;
   return <Shell page={page} setPage={navigate} onDemo={() => setDemoOpen(true)} onSignIn={() => setSignInOpen(true)} onSignOut={signOut} onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")} theme={theme} session={session} isConnected={isConnected} activeAlertCount={alerts.filter((alert) => !alert.acknowledged).length}>{pageContent}{demoOpen && <DemoModal nodes={nodes} onClose={() => setDemoOpen(false)} onTriggered={(nodeId) => { setSelectedNode(nodes.find((node) => node.node_id === nodeId) || selectedNode); navigate("/app/monitor"); }} />}{signInOpen && <SignInModal onClose={() => setSignInOpen(false)} onSignedIn={setSession} />}</Shell>;
 }

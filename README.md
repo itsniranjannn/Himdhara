@@ -624,11 +624,18 @@ The interface also provides a persisted light theme and follows the system prefe
 
 ### Motion
 
+- The public landing page uses Framer Motion for viewport reveals, pointer parallax, route transitions, and reduced-motion-aware choreography; SVG contour and river effects remain CSS-driven.
 - New alerts slide down 8px and fade in over 200ms.
 - Risk dots pulse once over 400ms when a station risk changes.
 - Updated numeric cells flash `var(--bg-2)` for 400ms.
 - Route changes use a 150ms opacity fade.
 - Only the WebSocket live indicator uses a continuous two-second breathing animation.
+
+### Public landing experience
+
+- `/` is the public animated basin overview. Its network preview reads live station state but the flood-wave button is visual-only and never writes to the database.
+- The landing page is lazy-loaded so the operations bundle does not pay the cost of the public presentation until it is requested.
+- The footer identifies the current React, FastAPI, MQTT, and Leaflet stack; project credits remain a replaceable placeholder.
 
 ## Testing and verification
 
