@@ -641,7 +641,7 @@ The interface also provides a persisted light theme and follows the system prefe
 - Public bulletin presentation is intentionally separate from the operator shell: it has its own logo header, theme toggle, plain-language station conditions, and settlement guidance without operator controls or implementation jargon.
 - Configuration controls are disabled for signed-out and viewer sessions; the page explains that an operator sign-in is required to edit.
 - Water levels, rates, and telemetry values are shown to two decimal places. Interface timestamps use 24-hour `NPT` formatting.
-- The monitor chart scales to recent data with headroom and displays nearby WATCH, WARNING, and CRITICAL threshold lines. The neutral CartoDB light/dark basemaps include a station/settlement legend.
+- The monitor chart scales to recent data with headroom and displays nearby WATCH, WARNING, and CRITICAL threshold lines. The map uses the free OpenStreetMap tile service and includes a station/settlement legend; this avoids third-party API-key tile fallbacks.
 - Incident cards show duration, peak HSI, shortened identifiers with the full ID available on hover, and CSV export. The editable footer credits live in [`frontend/src/config/credits.js`](frontend/src/config/credits.js).
 
 ### Screenshots
