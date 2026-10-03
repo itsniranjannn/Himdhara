@@ -597,14 +597,16 @@ The frontend design system is centralized in `frontend/src/index.css`.
 --surface-3:#183743
 --border:#2a4a55
 --text-1:#edf7f6
---text-2:#a9c2c5
---text-3:#759499
---brand:#69d4cf
---risk-normal:#35c98a
---risk-watch:#e5bd4d
---risk-warning:#f28b5f
---risk-critical:#ee6671
---risk-stale:#869ca2
+--text-2:#b6c8ca
+--text-3:#7e999e
+--brand:#62d6d0
+--brand-hover:#8be6df
+--brand-muted:#2f7779
+--normal:#42c98a
+--watch:#d8b34b
+--warning:#e68a52
+--critical:#ed6b72
+--stale:#9aa8ae
 ```
 
 Risk colors are restricted to a status dot, adjacent label, and 2px left-edge accent. They are not used as full card fills or pill badges.
@@ -676,7 +678,7 @@ npm run lint
 - Frontend lint: **passed with zero warnings**.
 - Vite build emitted no chunk-size warning after lazy-loading the landing page; the largest generated JavaScript asset is approximately 415 kB minified.
 - Browser verification: landing page, both themes, desktop and mobile layouts, six fresh station timestamps, real Demo spike to CRITICAL, five ETA-sorted downstream routes, alert bulletin state, modal layering above Leaflet, route redirects, and stable alert upsert behavior.
-- `start_all.ps1` now anchors all child processes to the repository root and opens the public landing page at `/`.
+- `start_all.ps1` anchors backend and simulator processes to the repository root, starts Vite in `frontend`, and opens the public landing page at `/`.
 
 ## Troubleshooting
 

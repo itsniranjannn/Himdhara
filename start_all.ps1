@@ -8,17 +8,17 @@ Write-Host "==================================================================" 
 
 # Check Python and Node
 Write-Host "[1/3] Launching FastAPI Backend on http://127.0.0.1:8000..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python backend/run.py"
+Start-Process powershell -WorkingDirectory $PSScriptRoot -ArgumentList "-NoExit", "-Command", "python backend\run.py"
 
 Start-Sleep -Seconds 2
 
 Write-Host "[2/3] Launching Sensor Simulator (MQTT -> HiveMQ)..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python sensor-sim/simulator.py"
+Start-Process powershell -WorkingDirectory $PSScriptRoot -ArgumentList "-NoExit", "-Command", "python sensor-sim\simulator.py"
 
 Start-Sleep -Seconds 2
 
 Write-Host "[3/3] Launching React public landing page on http://localhost:5173..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd frontend; npm run dev"
+Start-Process powershell -WorkingDirectory (Join-Path $PSScriptRoot "frontend") -ArgumentList "-NoExit", "-Command", "npm run dev"
 
 Write-Host "`nAll 3 services launched in separate windows!" -ForegroundColor Cyan
 Write-Host "Open your browser at: http://127.0.0.1:5173 (landing page; dashboard: /app/monitor)" -ForegroundColor Yellow
