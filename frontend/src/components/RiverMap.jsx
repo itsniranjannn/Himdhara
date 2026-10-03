@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
-import { MapPin, AlertCircle, Home } from "lucide-react";
 
 // Automatically calls fitBounds on all station coordinates on initial load so the full basin is visible
 function AutoFitBounds({ nodes, settlements }) {
@@ -70,7 +69,7 @@ function createStationIcon(riskLevel, isSelected) {
         background: ${color};
         border-radius: 50%;
         border: 2px solid #ffffff;
-        box-shadow: 0 0 12px ${color};
+        box-shadow: 0 0 0 3px color-mix(in srgb, ${color} 22%, transparent);
         transition: all 0.2s;
       "></div>
     </div>
@@ -87,13 +86,13 @@ function createStationIcon(riskLevel, isSelected) {
 function createSettlementIcon() {
   const html = `
     <div style="
-      background: #3b82f6;
-      border: 2px solid #ffffff;
+      background: #2c8fa0;
+      border: 2px solid #eaf8f7;
       border-radius: 4px;
       width: 14px;
       height: 14px;
       transform: rotate(45deg);
-      box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+      box-shadow: 0 0 0 3px rgba(44, 143, 160, 0.2);
     "></div>
   `;
   return L.divIcon({
@@ -104,7 +103,7 @@ function createSettlementIcon() {
   });
 }
 
-export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {} }) {
+export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {}, theme = "dark" }) {
   // Center roughly on Langtang - Trishuli basin (Lat: 28.08, Lng: 85.32)
   const centerPosition = [28.06, 85.32];
 
@@ -137,7 +136,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
   }
 
   return (
-    <div className="map-container-wrapper">
+    <div className={`map-container-wrapper ${theme}`}>
       <MapContainer
         center={centerPosition}
         zoom={10}
@@ -159,7 +158,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
             key={reach.id}
             positions={[reach.from, reach.to]}
             pathOptions={{
-              color: reach.type === "settlement" ? "#60a5fa" : "#0284c7",
+              color: reach.type === "settlement" ? "#5fb9c3" : "#2c8fa0",
               weight: reach.type === "settlement" ? 2 : 4,
               opacity: 0.7,
               dashArray: reach.type === "settlement" ? "4, 6" : undefined
@@ -184,27 +183,26 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
               }}
             >
               <Popup className="custom-leaflet-popup">
-                <div style={{ color: "#0f172a", fontSize: "0.85rem", minWidth: "160px" }}>
+                <div className="map-popup-content" style={{ fontSize: "0.85rem", minWidth: "160px" }}>
                   <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{node.name}</div>
-                  <div style={{ color: "#475569", fontSize: "0.78rem", marginBottom: "6px" }}>
+                  <div style={{ color: "var(--text-3)", fontSize: "0.78rem", marginBottom: "6px" }}>
                     ID: {node.node_id} | Elev: {node.elevation_m}m
                   </div>
                   <div>Status: <b>{risk}</b></div>
-                  {live.water_level_cm !== undefined && (
+                  {(live.water_level_cm !== undefined || live.rate_of_change_cm_min !== undefined || live.hsi_score !== undefined) && (
                     <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid #cbd5e1", paddingTop: "4px" }}>
-                      <div>Water: <b>{live.water_level_cm} cm</b></div>
-                      <div>Rainfall: <b>{live.rainfall_mm} mm</b></div>
-                      <div>Soil Sat: <b>{live.soil_moisture_pct} %</b></div>
-                      {live.hsi_score !== undefined && live.hsi_score !== null && (
-                        <div>HSI Score: <b>{Number(live.hsi_score).toFixed(2)}</b></div>
-                      )}
+                      <div>Water: <b>{live.water_level_cm ?? "--"} cm</b></div>
+                      <div>Rate: <b>{live.rate_of_change_cm_min ?? "--"} cm/min</b></div>
+                      <div>HSI Score: <b>{live.hsi_score !== undefined && live.hsi_score !== null ? Number(live.hsi_score).toFixed(2) : "--"}</b></div>
+                      <div>Rainfall: <b>{live.rainfall_mm ?? "--"} mm</b></div>
+                      <div>Soil Sat: <b>{live.soil_moisture_pct ?? "--"} %</b></div>
                     </div>
                   )}
                   <button
                     onClick={() => onSelectNode(node.node_id)}
                     style={{
                       marginTop: "8px",
-                      background: "#0284c7",
+                    background: "var(--brand)",
                       color: "white",
                       border: "none",
                       padding: "4px 8px",

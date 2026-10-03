@@ -14,6 +14,18 @@ export function useWebSocket(url, onMessage) {
   useEffect(() => {
     let unmounted = false;
 
+    let retryDelay = 1000;
+
+    function scheduleReconnect() {
+      if (!unmounted && !reconnectTimeoutRef.current) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = null;
+          connect();
+        }, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 30000);
+      }
+    }
+
     function connect() {
       if (unmounted) return;
       
@@ -24,6 +36,7 @@ export function useWebSocket(url, onMessage) {
         ws.onopen = () => {
           if (!unmounted) {
             setIsConnected(true);
+            retryDelay = 1000;
             // Ping heartbeat every 15s
             pingIntervalRef.current = setInterval(() => {
               if (ws.readyState === WebSocket.OPEN) {
@@ -48,7 +61,7 @@ export function useWebSocket(url, onMessage) {
           if (!unmounted) {
             setIsConnected(false);
             clearInterval(pingIntervalRef.current);
-            reconnectTimeoutRef.current = setTimeout(connect, 3000);
+            scheduleReconnect();
           }
         };
 
@@ -57,7 +70,7 @@ export function useWebSocket(url, onMessage) {
         };
       } catch (err) {
         console.error("WebSocket connection failure:", err);
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        scheduleReconnect();
       }
     }
 

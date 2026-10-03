@@ -1,5 +1,5 @@
 import React from "react";
-import { Database, Filter } from "lucide-react";
+import { Database } from "lucide-react";
 
 export default function RawDataTable({ nodes, latestTelemetryMap, selectedNodeId, onSelectNode }) {
   return (

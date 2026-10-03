@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Activity, Radio, AlertTriangle, ShieldCheck, Waves } from "lucide-react";
+import { Activity, AlertTriangle, ShieldCheck, Waves } from "lucide-react";
 
 export default function Header({ isConnected, activeAlertCount, stationCount }) {
   const [timeStr, setTimeStr] = useState(new Date().toLocaleTimeString());

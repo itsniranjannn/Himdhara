@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertOctagon, Clock, Users, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Users, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { acknowledgeAlert } from "../services/api";
 
 export default function AlertFeed({ alerts, onAlertAcknowledged }) {

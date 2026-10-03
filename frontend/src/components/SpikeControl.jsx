@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Zap, Flame, Sliders, AlertTriangle } from "lucide-react";
+import React, { useState } from "react";
+import { Zap, Flame } from "lucide-react";
 import { triggerSpike } from "../services/api";
 
 export default function SpikeControl({ nodes, onSpikeTriggered }) {
@@ -8,20 +8,14 @@ export default function SpikeControl({ nodes, onSpikeTriggered }) {
   const [isTriggering, setIsTriggering] = useState(false);
   const [lastMsg, setLastMsg] = useState("");
 
-  useEffect(() => {
-    if (nodes && nodes.length > 0) {
-      if (!targetNode || !nodes.some(n => n.node_id === targetNode)) {
-        setTargetNode(nodes[0].node_id);
-      }
-    }
-  }, [nodes, targetNode]);
+  const effectiveTargetNode = nodes.some((node) => node.node_id === targetNode) ? targetNode : nodes[0]?.node_id || targetNode;
 
   const handleTrigger = async () => {
     setIsTriggering(true);
     setLastMsg("");
     try {
-      const res = await triggerSpike(targetNode, Number(surgeCm));
-      setLastMsg(`Flood spike command dispatched to ${targetNode} (+${surgeCm}cm surge)!`);
+      await triggerSpike(effectiveTargetNode, Number(surgeCm));
+      setLastMsg(`Flood spike command dispatched to ${effectiveTargetNode} (+${surgeCm}cm surge)!`);
       if (onSpikeTriggered) {
         onSpikeTriggered(targetNode);
       }
@@ -46,7 +40,7 @@ export default function SpikeControl({ nodes, onSpikeTriggered }) {
           <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Target Station:</span>
           <select
             className="spike-select"
-            value={targetNode}
+            value={effectiveTargetNode}
             onChange={(e) => setTargetNode(e.target.value)}
           >
             {nodes.map((n) => (

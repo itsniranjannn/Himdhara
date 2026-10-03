@@ -1,17 +1,15 @@
 import React from "react";
 import {
   ResponsiveContainer,
-  LineChart,
   Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   ReferenceLine,
-  Area,
   ComposedChart
 } from "recharts";
-import { TrendingUp, Activity, Droplets } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 export default function TelemetryChart({ selectedNode, readings, latestTelemetryMap = {} }) {
   if (!selectedNode) {
