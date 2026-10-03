@@ -638,6 +638,11 @@ The interface also provides a persisted light theme and follows the system prefe
 - `/` is the public animated basin overview. Its network preview reads live station state but the flood-wave button is visual-only and never writes to the database.
 - The landing page is lazy-loaded so the operations bundle does not pay the cost of the public presentation until it is requested.
 - The footer identifies the current React, FastAPI, MQTT, and Leaflet stack; project credits remain a replaceable placeholder.
+- Public bulletin presentation is intentionally separate from the operator shell: it has its own logo header, theme toggle, plain-language station conditions, and settlement guidance without operator controls or implementation jargon.
+- Configuration controls are disabled for signed-out and viewer sessions; the page explains that an operator sign-in is required to edit.
+- Water levels, rates, and telemetry values are shown to two decimal places. Interface timestamps use 24-hour `NPT` formatting.
+- The monitor chart scales to recent data with headroom and displays nearby WATCH, WARNING, and CRITICAL threshold lines. The neutral CartoDB light/dark basemaps include a station/settlement legend.
+- Incident cards show duration, peak HSI, shortened identifiers with the full ID available on hover, and CSV export. The editable footer credits live in [`frontend/src/config/credits.js`](frontend/src/config/credits.js).
 
 ### Screenshots
 
@@ -650,6 +655,7 @@ The final browser verification captures are in [`docs/screenshots/`](docs/screen
 - `alerts-dark.png`, `incidents-dark.png`, and `configuration-dark.png` — operations surfaces.
 - `bulletin-alert-dark.png` — public bulletin during an active alert.
 - `mobile-bulletin-dark.png` — narrow mobile bulletin with no horizontal overflow.
+- `monitor-critical-latest.png`, `alerts-active-latest.png`, `bulletin-active-latest.png`, `mobile-bulletin-latest.png`, and `monitor-light-latest.png` — current-round live spike verification captures.
 
 Screenshots are captured from the rendered app viewport only; browser chrome and personal bookmarks are excluded.
 

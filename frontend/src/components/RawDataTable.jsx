@@ -63,10 +63,10 @@ export default function RawDataTable({ nodes, latestTelemetryMap, selectedNodeId
                   </td>
                   <td style={{ padding: "8px 12px", fontWeight: 600 }}>{n.name}</td>
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)" }}>
-                    {live.water_level_cm ? `${live.water_level_cm} cm` : "--"}
+                    {live.water_level_cm !== undefined ? `${Number(live.water_level_cm).toFixed(2)} cm` : "--"}
                   </td>
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "#34d399" }}>
-                    {live.ema_water_level ? `${live.ema_water_level} cm` : "--"}
+                    {live.ema_water_level !== undefined ? `${Number(live.ema_water_level).toFixed(2)} cm` : "--"}
                   </td>
                   <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "#fb923c" }}>
                     {live.rate_of_change_cm_min ? `${live.rate_of_change_cm_min} cm/m` : "0.0"}

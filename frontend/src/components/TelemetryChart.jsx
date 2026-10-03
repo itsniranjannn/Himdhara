@@ -79,6 +79,17 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
   });
 
   const liveRisk = live.risk_level || selectedNode.current_risk || "NORMAL";
+  const dataValues = chartData.flatMap((point) => [point.water_level, point.ema].filter((value) => Number.isFinite(value)));
+  const dataMin = dataValues.length ? Math.min(...dataValues) : 0;
+  const dataMax = dataValues.length ? Math.max(...dataValues) : Math.max(tWatch, tWarn, tCrit);
+  const range = Math.max(dataMax - dataMin, 10);
+  const chartMin = Math.max(0, dataMin - range * 0.08);
+  const chartMax = dataMax + range * 0.12;
+  const visibleThresholds = [
+    ["WATCH", tWatch, "#f59e0b"],
+    ["WARNING", tWarn, "#f97316"],
+    ["CRITICAL", tCrit, "#ef4444"]
+  ].filter(([, value]) => value >= chartMin - range * 0.15 && value <= chartMax + range * 0.15);
 
   return (
     <div className="glass-panel" style={{ height: "340px" }}>
@@ -103,13 +114,13 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
       {/* Real-time stats chips dynamically bound to selected station */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "10px", flexWrap: "wrap" }}>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          Water Level: <b style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>{live.water_level_cm !== undefined ? `${live.water_level_cm} cm` : "--"}</b>
+          Water Level: <b style={{ color: "#38bdf8", fontFamily: "var(--font-mono)" }}>{live.water_level_cm !== undefined ? `${Number(live.water_level_cm).toFixed(2)} cm` : "--"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          EMA Baseline: <b style={{ color: "#34d399", fontFamily: "var(--font-mono)" }}>{live.ema_water_level !== undefined ? `${live.ema_water_level} cm` : "--"}</b>
+          EMA Baseline: <b style={{ color: "#34d399", fontFamily: "var(--font-mono)" }}>{live.ema_water_level !== undefined ? `${Number(live.ema_water_level).toFixed(2)} cm` : "--"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
-          Surge Rate: <b style={{ color: "#fb923c", fontFamily: "var(--font-mono)" }}>{live.rate_of_change_cm_min !== undefined ? `${live.rate_of_change_cm_min} cm/min` : "0.0 cm/min"}</b>
+          Surge Rate: <b style={{ color: "#fb923c", fontFamily: "var(--font-mono)" }}>{live.rate_of_change_cm_min !== undefined ? `${Number(live.rate_of_change_cm_min).toFixed(2)} cm/min` : "0.00 cm/min"}</b>
         </div>
         <div style={{ fontSize: "0.76rem", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "6px" }}>
           HSI Stress Score: <b style={{ color: (live.hsi_score ?? 0) >= 3 ? "#f87171" : "#a78bfa", fontFamily: "var(--font-mono)" }}>
@@ -123,7 +134,7 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f293d" />
             <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-            <YAxis stroke="#64748b" fontSize={11} domain={['auto', 'auto']} />
+            <YAxis stroke="#64748b" fontSize={11} domain={[chartMin, chartMax]} />
             <Tooltip
               contentStyle={{
                 backgroundColor: "#0f172a",
@@ -140,9 +151,9 @@ export default function TelemetryChart({ selectedNode, readings, latestTelemetry
             />
 
             {/* Threshold Reference Lines */}
-            <ReferenceLine y={tWatch} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: `Watch (${tWatch}cm)`, fill: '#f59e0b', fontSize: 10 }} />
-            <ReferenceLine y={tWarn} stroke="#f97316" strokeDasharray="3 3" label={{ value: `Warning (${tWarn}cm)`, fill: '#f97316', fontSize: 10 }} />
-            <ReferenceLine y={tCrit} stroke="#ef4444" strokeDasharray="3 3" label={{ value: `Critical (${tCrit}cm)`, fill: '#ef4444', fontSize: 10 }} />
+            {visibleThresholds.map(([label, value, color]) => (
+              <ReferenceLine key={label} y={value} stroke={color} strokeWidth={1} label={{ value: `${label} (${value}cm)`, fill: color, fontSize: 10 }} />
+            ))}
 
             {/* EMA Line */}
             <Line

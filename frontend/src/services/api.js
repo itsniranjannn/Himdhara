@@ -60,6 +60,18 @@ export async function fetchIncidents() {
   return res.json();
 }
 
+export async function exportIncidents() {
+  const res = await request(`${API_BASE}/incidents/export.csv`);
+  if (!res.ok) throw new Error("Failed to export incidents");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "incidents.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchSettlements() {
   const res = await request(`${API_BASE}/settlements`);
   if (!res.ok) throw new Error("Failed to fetch settlements");

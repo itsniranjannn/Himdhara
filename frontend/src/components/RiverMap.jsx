@@ -145,7 +145,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url={theme === "dark" ? "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"}
           maxZoom={19}
         />
 
@@ -191,7 +191,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                   <div>Status: <b>{risk}</b></div>
                   {(live.water_level_cm !== undefined || live.rate_of_change_cm_min !== undefined || live.hsi_score !== undefined) && (
                     <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid #cbd5e1", paddingTop: "4px" }}>
-                      <div>Water: <b>{live.water_level_cm ?? "--"} cm</b></div>
+                      <div>Water: <b>{live.water_level_cm !== undefined ? Number(live.water_level_cm).toFixed(2) : "--"} cm</b></div>
                       <div>Rate: <b>{live.rate_of_change_cm_min ?? "--"} cm/min</b></div>
                       <div>HSI Score: <b>{live.hsi_score !== undefined && live.hsi_score !== null ? Number(live.hsi_score).toFixed(2) : "--"}</b></div>
                       <div>Rainfall: <b>{live.rainfall_mm ?? "--"} mm</b></div>
@@ -244,6 +244,10 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
             </Marker>
           );
         })}
+        <div className="map-legend leaflet-control">
+          <span><i className="legend-station" /> Station</span>
+          <span><i className="legend-settlement" /> Settlement</span>
+        </div>
       </MapContainer>
     </div>
   );

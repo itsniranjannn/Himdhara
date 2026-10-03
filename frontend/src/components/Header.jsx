@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Activity, AlertTriangle, ShieldCheck, Waves } from "lucide-react";
 
 export default function Header({ isConnected, activeAlertCount, stationCount }) {
-  const [timeStr, setTimeStr] = useState(new Date().toLocaleTimeString());
+  const formatNpt = () => `${new Date().toLocaleTimeString("en-NP", { timeZone: "Asia/Kathmandu", hour12: false })} NPT`;
+  const [timeStr, setTimeStr] = useState(formatNpt());
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeStr(new Date().toLocaleTimeString());
+      setTimeStr(formatNpt());
     }, 1000);
     return () => clearInterval(timer);
   }, []);

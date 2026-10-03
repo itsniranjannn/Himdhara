@@ -227,13 +227,16 @@ class MQTTIngestionService:
                                           source_node_id=node_id, peak_risk=risk_level, started_at=ts))
                 elif incident.peak_risk == "WARNING" and risk_level == "CRITICAL":
                     incident.peak_risk = "CRITICAL"
-            elif risk_level == "NORMAL":
+            elif risk_level in ("WATCH", "NORMAL"):
+                # An incident represents a warning/critical period. Close it as
+                # soon as the station falls below WARNING rather than waiting
+                # for every lower-severity soil/watch signal to clear.
                 incident = db.query(IncidentModel).filter(
                     IncidentModel.source_node_id == node_id,
                     IncidentModel.recovered_at.is_(None)).first()
                 if incident:
                     incident.recovered_at = ts
-                    incident.recovery_note = "Automatic recovery after risk normalized"
+                    incident.recovery_note = "Automatic recovery after risk fell below WARNING"
 
             db.commit()
         except Exception as ex:
