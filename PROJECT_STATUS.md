@@ -58,7 +58,7 @@ Connected to **Supabase PostgreSQL** cloud database and streaming live telemetry
 | **Unit Test** | `test_graph.py::test_graph_propagation_from_upstream` | Verifies Dijkstra routes downstream in strict ETA order: Dhunche (18m) -> Syapru (30m) -> Betrawati (71m) -> Trishuli (88m) -> Galchi (117m) | **PASSED** |
 | **Unit Test** | `test_graph.py::test_graph_propagation_normal` | Verifies `NORMAL` state produces 0 false alerts | **PASSED** |
 | **Integration** | `test_e2e_pipeline.py` | Full pipeline test: seed nodes -> ingest reading -> inject spike -> assert database rows & alerts | **PASSED** |
-| **Live API** | `verify_live.py` | Live verification against running backend (`http://localhost:8000/api/health`, `/nodes`, `/alerts`) | **PASSED** (6 stations, 5 alerts, active WS client) |
+| **Live API** | `verify_live.py` | Live verification against running backend (`http://127.0.0.1:8000/api/health`, `/nodes`, `/alerts`) | **PASSED** (6 stations, 5 alerts, active WS client) |
 | **Frontend Build** | `npm run build` | Vite production bundle compilation | **PASSED** (0 errors, 2.30s) |
 
 ---
