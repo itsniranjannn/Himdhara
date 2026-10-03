@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, Index
 from .database import Base
 
 class NodeModel(Base):
@@ -31,6 +31,9 @@ class SensorReadingModel(Base):
     # Computed metrics from Anomaly Detection Engine (Module C)
     ema_water_level = Column(Float, nullable=True)
     rate_of_change_cm_min = Column(Float, nullable=True)
+    s_level = Column(Float, nullable=True)
+    s_rate = Column(Float, nullable=True)
+    s_soil = Column(Float, nullable=True)
     hsi_score = Column(Float, nullable=True)
     risk_level = Column(String(20), default="NORMAL")
 
@@ -49,3 +52,57 @@ class AlertModel(Base):
     population_at_risk = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     acknowledged = Column(Boolean, default=False)
+    status = Column(String(20), default="ACTIVE", nullable=False)
+    acknowledged_at = Column(DateTime, nullable=True)
+    acknowledged_by = Column(String(100), nullable=True)
+    acknowledgment_note = Column(Text, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(String(100), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_open_alert_source_settlement",
+            "source_node_id",
+            "affected_settlement_id",
+            unique=True,
+            sqlite_where=(status.in_(["ACTIVE", "ACKNOWLEDGED"])),
+            postgresql_where=(status.in_(["ACTIVE", "ACKNOWLEDGED"])),
+        ),
+    )
+
+class UserModel(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="viewer")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class AlertHistoryModel(Base):
+    __tablename__ = "alert_history"
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(String(50), index=True, nullable=False)
+    from_status = Column(String(20), nullable=True)
+    to_status = Column(String(20), nullable=False)
+    changed_by = Column(String(100), nullable=True)
+    note = Column(Text, nullable=True)
+    changed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+class IncidentModel(Base):
+    __tablename__ = "incidents"
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(String(60), unique=True, index=True, nullable=False)
+    source_node_id = Column(String(50), index=True, nullable=False)
+    peak_risk = Column(String(20), nullable=False)
+    started_at = Column(DateTime, nullable=False)
+    recovered_at = Column(DateTime, nullable=True)
+    recovery_note = Column(Text, nullable=True)
+
+class SettlementModel(Base):
+    __tablename__ = "settlements"
+    id = Column(Integer, primary_key=True, index=True)
+    settlement_id = Column(String(50), unique=True, index=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    evacuation_zone = Column(String(255), nullable=True)
+    population = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

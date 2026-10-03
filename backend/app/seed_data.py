@@ -1,12 +1,14 @@
 import json
 import os
-from .database import SessionLocal, engine, Base
-from .models import NodeModel
+from .database import SessionLocal, engine, Base, migrate_schema
+from .models import NodeModel, SettlementModel, UserModel
+from .auth import hash_password
+from .config import settings
 from .anomaly_engine import anomaly_engine
 
 def seed_river_network():
     """Initializes tables and seeds sensor nodes from river topology JSON."""
-    Base.metadata.create_all(bind=engine)
+    migrate_schema()
     
     topology_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json")
@@ -27,10 +29,8 @@ def seed_river_network():
             existing = db.query(NodeModel).filter(NodeModel.node_id == node_id).first()
             thresholds = n.get("thresholds", {})
             
-            # Register thresholds with anomaly engine
-            anomaly_engine.set_node_thresholds(node_id, thresholds)
-
             if not existing:
+                anomaly_engine.set_node_thresholds(node_id, thresholds)
                 new_node = NodeModel(
                     node_id=node_id,
                     name=n["name"],
@@ -46,9 +46,20 @@ def seed_river_network():
                 db.add(new_node)
                 inserted += 1
             else:
-                existing.thresholds = json.dumps(thresholds)
+                # Keep operator-edited thresholds across restarts.
+                persisted = json.loads(existing.thresholds) if existing.thresholds else thresholds
+                anomaly_engine.set_node_thresholds(node_id, persisted)
                 existing.downstream_targets = json.dumps(n.get("downstream_targets", []))
                 updated += 1
+        for s in data.get("settlements", []):
+            existing = db.query(SettlementModel).filter(SettlementModel.settlement_id == s["settlement_id"]).first()
+            if not existing:
+                db.add(SettlementModel(settlement_id=s["settlement_id"], name=s["name"],
+                                       evacuation_zone=s.get("evacuation_zone"), population=s.get("population", 0)))
+        if not db.query(UserModel).first():
+            db.add(UserModel(username=settings.DEFAULT_OPERATOR_USERNAME,
+                             password_hash=hash_password(settings.DEFAULT_OPERATOR_PASSWORD),
+                             role="operator"))
         
         db.commit()
         total = db.query(NodeModel).count()

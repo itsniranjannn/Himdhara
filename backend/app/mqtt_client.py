@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 from .config import settings
 from .database import SessionLocal
-from .models import SensorReadingModel, NodeModel, AlertModel
+from .models import SensorReadingModel, NodeModel, AlertModel, AlertHistoryModel, IncidentModel
+from uuid import uuid4
 from .anomaly_engine import anomaly_engine
 from .graph_engine import graph_engine
 from .dispatcher import dispatcher
@@ -133,6 +134,9 @@ class MQTTIngestionService:
                 timestamp=ts,
                 ema_water_level=analysis["ema_water_level"],
                 rate_of_change_cm_min=analysis["rate_of_change_cm_min"],
+                s_level=analysis["s_level"],
+                s_rate=analysis["s_rate"],
+                s_soil=analysis["s_soil"],
                 hsi_score=analysis["hsi_score"],
                 risk_level=risk_level
             )
@@ -151,14 +155,12 @@ class MQTTIngestionService:
             if risk_level in ("WARNING", "CRITICAL"):
                 for alt in alerts:
                     settle_id = alt["affected_settlement_id"]
-                    # Query for any active (unacknowledged) alert for this pair
+                    # Reuse one open alert for each source/settlement pair.
                     existing_alert = (
                         db.query(AlertModel)
-                        .filter(
-                            AlertModel.source_node_id == node_id,
-                            AlertModel.affected_settlement_id == settle_id,
-                            AlertModel.acknowledged == False
-                        )
+                        .filter(AlertModel.source_node_id == node_id,
+                                AlertModel.affected_settlement_id == settle_id,
+                                AlertModel.status.in_(["ACTIVE", "ACKNOWLEDGED"]))
                         .first()
                     )
 
@@ -176,34 +178,62 @@ class MQTTIngestionService:
                             evacuation_zone=alt.get("evacuation_zone"),
                             population_at_risk=alt.get("population_at_risk", 0),
                             created_at=ts,
-                            acknowledged=False
+                            acknowledged=False, status="ACTIVE"
                         )
                         db.add(new_alert_rec)
                         alt_copy = dict(alt)
                         alt_copy["alert_id"] = new_alert_id
                         dispatched_alerts.append(alt_copy)
                     else:
-                        # Alert already active: update severity/eta if changed, but do not insert duplicates
-                        if existing_alert.risk_level != alt["risk_level"]:
-                            existing_alert.risk_level = alt["risk_level"]
-                            existing_alert.eta_minutes = alt["eta_minutes"]
+                        # Refresh the existing row in place; never grow duplicates per cycle.
+                        changed = (
+                            existing_alert.risk_level != alt["risk_level"]
+                            or existing_alert.eta_minutes != alt["eta_minutes"]
+                        )
+                        existing_alert.risk_level = alt["risk_level"]
+                        existing_alert.eta_minutes = alt["eta_minutes"]
+                        existing_alert.affected_settlement_name = alt["affected_settlement_name"]
+                        existing_alert.evacuation_zone = alt.get("evacuation_zone")
+                        existing_alert.population_at_risk = alt.get("population_at_risk", 0)
+                        if changed:
                             alt_copy = dict(alt)
                             alt_copy["alert_id"] = existing_alert.alert_id
                             dispatched_alerts.append(alt_copy)
-            elif risk_level in ("NORMAL", "WATCH"):
-                # If node returned to NORMAL or WATCH, auto-resolve any active alerts from this node
+            elif risk_level == "NORMAL":
+                # Normal recession closes all open alerts from this source station.
                 active_alerts = (
                     db.query(AlertModel)
-                    .filter(
-                        AlertModel.source_node_id == node_id,
-                        AlertModel.acknowledged == False
-                    )
+                    .filter(AlertModel.source_node_id == node_id,
+                            AlertModel.status.in_(["ACTIVE", "ACKNOWLEDGED"]))
                     .all()
                 )
                 if active_alerts:
                     for a in active_alerts:
+                        old_status = a.status
+                        a.status = "RESOLVED"; a.resolved_at = ts; a.resolved_by = "system-recovery"
                         a.acknowledged = True
+                        db.add(AlertHistoryModel(alert_id=a.alert_id, from_status=old_status,
+                                                 to_status="RESOLVED", changed_by="system-recovery",
+                                                 note="Sensor returned to NORMAL"))
                     should_broadcast_resolved = True
+
+            # Keep one incident open per source station until recovery.
+            if risk_level in ("WARNING", "CRITICAL"):
+                incident = db.query(IncidentModel).filter(
+                    IncidentModel.source_node_id == node_id,
+                    IncidentModel.recovered_at.is_(None)).first()
+                if not incident:
+                    db.add(IncidentModel(incident_id=f"INC-{node_id}-{int(ts.timestamp())}-{uuid4().hex[:6]}",
+                                          source_node_id=node_id, peak_risk=risk_level, started_at=ts))
+                elif incident.peak_risk == "WARNING" and risk_level == "CRITICAL":
+                    incident.peak_risk = "CRITICAL"
+            elif risk_level == "NORMAL":
+                incident = db.query(IncidentModel).filter(
+                    IncidentModel.source_node_id == node_id,
+                    IncidentModel.recovered_at.is_(None)).first()
+                if incident:
+                    incident.recovered_at = ts
+                    incident.recovery_note = "Automatic recovery after risk normalized"
 
             db.commit()
         except Exception as ex:

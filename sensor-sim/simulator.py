@@ -181,6 +181,14 @@ class RiverNetworkSimulator:
                 elif node_id == "ALL":
                     for n in self.nodes.values():
                         n.trigger_spike(w_surge, r_surge, s_surge, dur)
+            elif action == "RESET_SIMULATION":
+                for node in self.nodes.values():
+                    node.curr_water_level = node.base_water_level
+                    node.curr_rainfall = node.base_rainfall
+                    node.curr_soil_moisture = node.base_soil_moisture
+                    node.in_spike = False
+                    node.in_recession = False
+                print("[OK] [SIMULATION RESET] All stations returned to baseline.")
         except Exception as e:
             print(f"Error parsing control message: {e}")
 

@@ -67,3 +67,14 @@ def test_anomaly_flash_flood_spike():
     )
     assert surge_2["risk_level"] == "CRITICAL"
     assert surge_2["hsi_score"] >= 3.0
+
+def test_risk_boundaries_are_explicit_and_ordered():
+    t0 = datetime(2026, 9, 16, 12, 0, tzinfo=timezone.utc)
+    for level, expected in ((99.9, "NORMAL"), (100.0, "WATCH"), (150.0, "WARNING"), (200.0, "CRITICAL")):
+        engine = AnomalyDetectionEngine()
+        engine.set_node_thresholds("BOUNDARY", {
+            "water_level_watch": 100.0,
+            "water_level_warning": 150.0,
+            "water_level_critical": 200.0,
+        })
+        assert engine.process_reading("BOUNDARY", level, 0, 20, t0)["risk_level"] == expected

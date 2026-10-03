@@ -6,6 +6,7 @@ from fastapi import WebSocket
 
 logger = logging.getLogger("AlertDispatcher")
 logger.setLevel(logging.INFO)
+from .notifier import notifier
 
 class AlertDispatcher:
     """
@@ -71,6 +72,9 @@ class AlertDispatcher:
             print(f"   Evacuation Point: {alert['evacuation_zone']}")
             print(f"   Population at Risk: {alert['population_at_risk']:,}")
             print(f"   Simulated SMS Sent: 'FLOOD ALERT: Evacuate riverbanks toward {alert['evacuation_zone']}. ETA {alert['eta_minutes']}m.'")
+            message = f"FLOOD ALERT: Evacuate riverbanks toward {alert['evacuation_zone']}. ETA {alert['eta_minutes']}m."
+            notifier.send_sms(alert["affected_settlement_id"], message)
+            notifier.send_email(alert["affected_settlement_id"], f"{alert['risk_level']} flood alert", message)
             print("=" * 70 + "\n")
 
     async def dispatch_resolved(self, source_node_id: str):

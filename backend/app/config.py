@@ -28,5 +28,11 @@ class Settings(BaseModel):
     WATER_DEV_WEIGHT: float = 0.45
     SOIL_MOISTURE_WEIGHT: float = 0.15
     SOIL_MOISTURE_SAT_THRESHOLD: float = 40.0  # % above which soil saturation accelerates runoff
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
+    SMS_PROVIDER: str = os.getenv("SMS_PROVIDER", "simulated")
+    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "simulated")
+    DEFAULT_OPERATOR_USERNAME: str = os.getenv("DEFAULT_OPERATOR_USERNAME", "operator")
+    DEFAULT_OPERATOR_PASSWORD: str = os.getenv("DEFAULT_OPERATOR_PASSWORD", "operator")
 
 settings = Settings()
