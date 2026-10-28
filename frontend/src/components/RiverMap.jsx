@@ -36,12 +36,13 @@ function AutoFitBounds({ nodes, settlements }) {
 // Helper to create custom SVG div icons based on station risk status
 function createStationIcon(riskLevel, isSelected) {
   const colorMap = {
-    NORMAL: "#10b981",
-    WATCH: "#f59e0b",
-    WARNING: "#f97316",
-    CRITICAL: "#ef4444"
+    NORMAL: "#42c98a",
+    WATCH: "#d8b34b",
+    WARNING: "#e68a52",
+    CRITICAL: "#ed6b72",
+    STALE: "#9aa8ae"
   };
-  const color = colorMap[riskLevel] || "#10b981";
+  const color = colorMap[riskLevel] || colorMap.NORMAL;
   const isCritical = riskLevel === "CRITICAL";
 
   const html = `
@@ -103,7 +104,7 @@ function createSettlementIcon() {
   });
 }
 
-export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {}, theme = "dark" }) {
+export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {}, theme = "dark", riskFor }) {
   // Center roughly on Langtang - Trishuli basin (Lat: 28.08, Lng: 85.32)
   const centerPosition = [28.06, 85.32];
 
@@ -170,7 +171,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
         {nodes.map((node) => {
           const isSelected = node.node_id === selectedNodeId;
           const live = latestTelemetryMap[node.node_id] || node.latest_reading || {};
-          const risk = live.risk_level || node.current_risk || "NORMAL";
+          const risk = riskFor ? riskFor(node) : (live.risk_level || node.current_risk || "NORMAL");
           const icon = createStationIcon(risk, isSelected);
 
           return (
@@ -188,9 +189,9 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                   <div style={{ color: "var(--text-3)", fontSize: "0.78rem", marginBottom: "6px" }}>
                     ID: {node.node_id} | Elev: {node.elevation_m}m
                   </div>
-                  <div>Status: <b>{risk}</b></div>
+                  <div>Status: <b>{risk === "STALE" ? "OFFLINE (no recent reading)" : risk}</b></div>
                   {(live.water_level_cm !== undefined || live.rate_of_change_cm_min !== undefined || live.hsi_score !== undefined) && (
-                    <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid #cbd5e1", paddingTop: "4px" }}>
+                    <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "4px" }}>
                       <div>Water: <b>{live.water_level_cm !== undefined ? Number(live.water_level_cm).toFixed(2) : "--"} cm</b></div>
                       <div>Rate: <b>{live.rate_of_change_cm_min ?? "--"} cm/min</b></div>
                       <div>HSI Score: <b>{live.hsi_score !== undefined && live.hsi_score !== null ? Number(live.hsi_score).toFixed(2) : "--"}</b></div>
@@ -203,7 +204,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                     style={{
                       marginTop: "8px",
                     background: "var(--brand)",
-                      color: "white",
+                      color: "#082027",
                       border: "none",
                       padding: "4px 8px",
                       borderRadius: "4px",
@@ -229,15 +230,15 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
               position={[settle.lat, settle.lng]}
               icon={icon}
             >
-              <Popup>
-                <div style={{ color: "#0f172a", fontSize: "0.85rem", minWidth: "180px" }}>
-                  <div style={{ fontWeight: 700, color: "#1d4ed8" }}>{settle.name}</div>
-                  <div style={{ fontSize: "0.78rem", color: "#475569" }}>
+              <Popup className="custom-leaflet-popup">
+                <div style={{ fontSize: "0.85rem", minWidth: "180px" }}>
+                  <div style={{ fontWeight: 700 }}>{settle.name}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-3)" }}>
                     Population: <b>{(settle.population || 0).toLocaleString()}</b>
                   </div>
                   <div style={{ marginTop: "6px", fontSize: "0.76rem" }}>
-                    Evacuation Zone: <br/>
-                    <span style={{ color: "#047857", fontWeight: 600 }}>{settle.evacuation_zone}</span>
+                    Evacuation point: <br/>
+                    <span style={{ color: "var(--normal)", fontWeight: 600 }}>{settle.evacuation_zone}</span>
                   </div>
                 </div>
               </Popup>

@@ -41,7 +41,14 @@ The system is designed for a viva/demo deployment, but the boundaries between th
 - Resolves open alerts when the source station returns to `NORMAL`.
 - Records acknowledgement, resolution, recovery, and operator history.
 - Broadcasts live telemetry and alert events over WebSocket.
-- Provides local/demo operator actions and a read-only viewer experience without a login prompt.
+- Read-only public access, with operator sign-in required for every state-changing action (see [Authentication](#authentication-and-authorization)).
+- Detects silent sensors: a station with no reading for `STALE_AFTER_SECONDS` (default 60) is shown as OFFLINE instead of its last risk band.
+- Short-horizon trend forecast per station (minutes until watch/warning/critical at the current rate, guidance only).
+- Operators acknowledge and resolve alerts with notes and a full history; alerts also auto-resolve on recovery.
+- Analytics page: water-level history over 1 h to 7 days, per-station statistics, risk-band time share, CSV export.
+- Alert delivery by SMS (Sparrow SMS, Nepal) and email (SMTP) to registered contacts in English or Nepali, with a persistent delivery log. Defaults to simulated delivery.
+- Public bulletin in English and Nepali, with resident self-registration for SMS alerts.
+- Telemetry validation (unknown stations, out-of-range or non-numeric values are rejected) and a private MQTT topic prefix.
 - Includes a modal Demo workflow for spike injection and simulator reset.
 - Provides a public bulletin with station conditions, general safety guidance, and settlement evacuation points.
 - Supports SQLite for zero-configuration local development and PostgreSQL for hosted deployments.
@@ -475,10 +482,16 @@ Copy `.env.example` to `.env` at the repository root or configure environment va
 | `RATE_OF_CHANGE_WEIGHT` | `0.40` | HSI rate component weight |
 | `WATER_DEV_WEIGHT` | `0.45` | HSI water deviation weight |
 | `SOIL_MOISTURE_WEIGHT` | `0.15` | HSI soil component weight |
-| `JWT_SECRET` | `change-me-in-production` | JWT signing secret; replace in deployment |
+| `JWT_SECRET` | random per process | JWT signing secret; set a long random value in `.env` |
+| `MQTT_USERNAME` / `MQTT_PASSWORD` | empty | Broker credentials (use on a private broker) |
+| `STALE_AFTER_SECONDS` | `60` | Silence before a station is shown OFFLINE |
+| `ALLOWED_ORIGINS` | localhost dev ports | Comma-separated browser origins allowed by CORS |
+| `DEMO_CONTROLS_ENABLED` | `true` | Enables the spike / reset demo endpoints |
+| `SMS_PROVIDER`, `SPARROW_TOKEN`, `SPARROW_FROM` | `simulated` | Set provider to `sparrow` to send real SMS |
+| `EMAIL_PROVIDER`, `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM` | `simulated` | Set provider to `smtp` to send real email |
 | `JWT_EXPIRE_MINUTES` | `480` | Token lifetime |
 | `DEFAULT_OPERATOR_USERNAME` | `operator` | Seed operator username |
-| `DEFAULT_OPERATOR_PASSWORD` | `operator` | Seed operator password; replace in deployment |
+| `DEFAULT_OPERATOR_PASSWORD` | empty | Operator password. Empty = a random one-time password is printed on first start |
 | `SMS_PROVIDER` | `simulated` | Notification provider mode |
 | `EMAIL_PROVIDER` | `simulated` | Notification provider mode |
 
@@ -509,7 +522,7 @@ The launcher opens:
 - Simulator publisher
 - Vite dashboard at `http://127.0.0.1:5173`
 
-The dashboard automatically reconnects its WebSocket with exponential backoff (capped at 30 seconds) and sends a heartbeat `ping` every 15 seconds. The backend answers with `pong`. The Demo button publishes an `INJECT_SPIKE` command without a login prompt; watch the selected station's water level, rate, HSI, risk badge, and map popup for the resulting live values.
+The dashboard automatically reconnects its WebSocket with exponential backoff (capped at 30 seconds) and sends a heartbeat `ping` every 15 seconds. The backend answers with `pong`. The Demo button (operator sign-in required) publishes an `INJECT_SPIKE` command; watch the selected station's water level, rate, HSI, risk badge, and map popup for the resulting live values.
 
 ### Start services manually
 
@@ -569,13 +582,15 @@ The dashboard and API require an operator JWT for spike and reset operations. If
 
 ## Authentication and authorization
 
-- Passwords are stored as PBKDF2-HMAC-SHA256 hashes with per-password salts.
+- Passwords are stored as PBKDF2-HMAC-SHA256 hashes (200,000 rounds) with random per-password salts. Login is rate-limited (8 attempts per minute per client and username).
 - Tokens are signed locally as HS256-style JWTs.
-- `viewer` is the default read-only role.
-- `operator` is required for state-changing alert, configuration, user, and simulator actions.
-- The default development credentials are `operator` / `operator`; change them before any shared or hosted deployment. The dashboard now reflects signed-out, viewer, and operator sessions in the sidebar and user chip, with sign-out clearing the local session.
-- Replace `JWT_SECRET=change-me-in-production` in every non-local environment.
-- CORS is currently permissive for local development and must be restricted to known frontend origins in production.
+- Reads are public: anyone can open the dashboard, the bulletin and read stations, alerts, incidents and settlements without signing in.
+- `operator` is required for every state-changing action: acknowledging/resolving alerts, editing thresholds and settlements, managing contacts, viewing the notification log, and the Demo spike/reset controls. `viewer` accounts are read-only; they can export CSV.
+- An anonymous request to a protected endpoint returns `401`; a viewer returns `403`.
+- The operator account comes from `DEFAULT_OPERATOR_USERNAME` / `DEFAULT_OPERATOR_PASSWORD` in `.env` and is re-synced on every start. If the password is empty the first start generates a random one-time password and prints it in the backend console. There is no default password.
+- `JWT_SECRET` must be set in `.env`. If it is empty a random per-process secret is used and sessions end on restart.
+- CORS is limited to `ALLOWED_ORIGINS`. The API binds to `127.0.0.1` by default (`API_HOST=0.0.0.0` to expose it).
+- Set `DEMO_CONTROLS_ENABLED=false` on a real deployment to disable the spike/reset endpoints.
 
 ## Design system and motion
 
@@ -706,7 +721,7 @@ npm run lint
 
 ### Demo does not update telemetry
 
-Confirm the backend is listening on port `8000`, the simulator is connected to the configured MQTT broker, and the browser is using `ws://127.0.0.1:8000/ws/stream`. The Demo button publishes directly without a login prompt. Then watch the selected station for updated water, rate, HSI, risk, and popup values.
+Confirm the backend is listening on port `8000`, the simulator is connected to the configured MQTT broker, and the browser is using `ws://127.0.0.1:8000/ws/stream`. The Demo button needs an operator sign-in first. Then watch the selected station for updated water, rate, HSI, risk, and popup values.
 
 ### Alerts appear duplicated
 

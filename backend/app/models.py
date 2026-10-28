@@ -37,6 +37,8 @@ class SensorReadingModel(Base):
     hsi_score = Column(Float, nullable=True)
     risk_level = Column(String(20), default="NORMAL")
 
+    __table_args__ = (Index("ix_readings_node_time", "node_id", "timestamp"),)
+
 class AlertModel(Base):
     __tablename__ = "alerts"
     
@@ -106,3 +108,29 @@ class SettlementModel(Base):
     evacuation_zone = Column(String(255), nullable=True)
     population = Column(Integer, default=0)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class ContactModel(Base):
+    """A person or office that receives alerts for a settlement."""
+    __tablename__ = "contacts"
+    id = Column(Integer, primary_key=True, index=True)
+    settlement_id = Column(String(50), index=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(150), nullable=True)
+    language = Column(String(5), default="en")  # 'en' or 'ne'
+    active = Column(Boolean, default=True)
+    source = Column(String(20), default="operator")  # 'operator' or 'public'
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class NotificationModel(Base):
+    """Persistent delivery log for every SMS or email the system sends."""
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    alert_id = Column(String(50), index=True, nullable=True)
+    channel = Column(String(10), nullable=False)
+    provider = Column(String(20), nullable=False)
+    recipient = Column(String(150), nullable=False)
+    content = Column(Text, nullable=False)
+    status = Column(String(12), nullable=False, default="SENT")  # SENT, SIMULATED, FAILED
+    error = Column(Text, nullable=True)

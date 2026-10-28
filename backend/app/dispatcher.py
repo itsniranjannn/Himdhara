@@ -6,6 +6,7 @@ from fastapi import WebSocket
 
 logger = logging.getLogger("AlertDispatcher")
 logger.setLevel(logging.INFO)
+from .database import SessionLocal
 from .notifier import notifier
 
 class AlertDispatcher:
@@ -63,19 +64,27 @@ class AlertDispatcher:
             "data": alerts
         })
 
-        # 2. Simulated Emergency Broadcast (Console & Log simulation)
+        # 2. SMS / email delivery runs off the event loop (network I/O) and is persisted.
         for alert in alerts:
-            print("\n" + "=" * 70)
-            print(f"[EMERGENCY ALERT ROUTED] -> {alert['affected_settlement_name'].upper()}")
-            print(f"   Origin: {alert['source_node_name']} ({alert['source_node_id']})")
-            print(f"   Severity: {alert['risk_level']} | Wave Arrival ETA: {alert['eta_minutes']} min")
-            print(f"   Evacuation Point: {alert['evacuation_zone']}")
-            print(f"   Population at Risk: {alert['population_at_risk']:,}")
-            print(f"   Simulated SMS Sent: 'FLOOD ALERT: Evacuate riverbanks toward {alert['evacuation_zone']}. ETA {alert['eta_minutes']}m.'")
-            message = f"FLOOD ALERT: Evacuate riverbanks toward {alert['evacuation_zone']}. ETA {alert['eta_minutes']}m."
-            notifier.send_sms(alert["affected_settlement_id"], message)
-            notifier.send_email(alert["affected_settlement_id"], f"{alert['risk_level']} flood alert", message)
-            print("=" * 70 + "\n")
+            logger.info("Alert routed: %s <- %s (%s, ETA %s min)", alert["affected_settlement_name"],
+                        alert["source_node_name"], alert["risk_level"], alert["eta_minutes"])
+        await asyncio.to_thread(self._notify, alerts)
+
+    @staticmethod
+    def _notify(alerts: list):
+        db = SessionLocal()
+        try:
+            for alert in alerts:
+                notifier.notify_alert(db, alert)
+        except Exception as error:
+            db.rollback()
+            logger.error("Notification delivery error: %s", error)
+        finally:
+            db.close()
+
+    async def dispatch_alert_update(self, alert: Dict[str, Any]):
+        """Tells every dashboard that an alert changed state (acknowledged / resolved)."""
+        await self.broadcast({"type": "ALERT_UPDATED", "data": alert})
 
     async def dispatch_resolved(self, source_node_id: str):
         """Broadcasts alert resolution to dashboard when river levels normalize."""

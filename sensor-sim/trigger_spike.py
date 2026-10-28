@@ -2,6 +2,9 @@ import argparse
 import json
 import os
 import paho.mqtt.publish as publish
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 def main():
     parser = argparse.ArgumentParser(description="Trigger simulated flood spike on Trishuli sensor nodes")
@@ -23,7 +26,7 @@ def main():
         "duration_seconds": args.duration
     }
 
-    topic = "nepal/trishuli/control/spike"
+    topic = os.getenv("MQTT_TOPIC_CONTROL", "nepal/trishuli/control/spike")
     print(f"[*] Injecting simulated flood surge...")
     print(f"   Target: {args.node}")
     print(f"   Surge: +{args.water}cm water level, +{args.rain}mm rainfall")
@@ -33,7 +36,8 @@ def main():
         topic=topic,
         payload=json.dumps(payload),
         hostname=args.broker,
-        port=args.port
+        port=args.port,
+        auth={"username": os.getenv("MQTT_USERNAME"), "password": os.getenv("MQTT_PASSWORD", "")} if os.getenv("MQTT_USERNAME") else None
     )
     print("[+] Flood surge command dispatched! Watch the backend & dashboard cascade.")
 

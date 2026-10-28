@@ -55,14 +55,31 @@ class NodeStatus(BaseModel):
 
 class SpikeInjectionRequest(BaseModel):
     node_id: str
-    water_level_surge_cm: float = 120.0
-    rainfall_surge_mm: float = 65.0
-    soil_moisture_surge_pct: float = 35.0
-    duration_seconds: int = 45
+    water_level_surge_cm: float = Field(default=120.0, ge=0, le=300)
+    rainfall_surge_mm: float = Field(default=65.0, ge=0, le=200)
+    soil_moisture_surge_pct: float = Field(default=35.0, ge=0, le=60)
+    duration_seconds: int = Field(default=45, ge=10, le=300)
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=200)
+
+class NewUserRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=100)
+    password: str = Field(min_length=10, max_length=200)
+    role: str = "viewer"
+
+class ContactCreate(BaseModel):
+    settlement_id: str
+    name: str = Field(min_length=1, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    email: Optional[str] = Field(default=None, max_length=150)
+    language: str = Field(default="en", pattern="^(en|ne)$")
+
+class PublicSubscribe(BaseModel):
+    settlement_id: str
+    phone: str = Field(max_length=20)
+    language: str = Field(default="en", pattern="^(en|ne)$")
 
 class AlertTransitionRequest(BaseModel):
     note: Optional[str] = None

@@ -26,16 +26,47 @@ class MQTTIngestionService:
     def __init__(self):
         self.client: mqtt.Client = None
         self.loop: asyncio.AbstractEventLoop = None
+        self.connected = False
+        self.last_message_at: datetime | None = None
+        self.rejected_messages = 0
+        self._known_nodes: set = set()
+
+    def _load_known_nodes(self):
+        db = SessionLocal()
+        try:
+            self._known_nodes = {row[0] for row in db.query(NodeModel.node_id).all()}
+        finally:
+            db.close()
+
+    @staticmethod
+    def validate_payload(data: dict, known_nodes: set) -> str | None:
+        """Return a rejection reason, or None when the payload is acceptable."""
+        if not isinstance(data, dict):
+            return "payload is not an object"
+        if data.get("node_id") not in known_nodes:
+            return "unknown node_id"
+        limits = {"water_level_cm": (0.0, 2000.0), "rainfall_mm": (0.0, 500.0), "soil_moisture_pct": (0.0, 100.0)}
+        for field, (low, high) in limits.items():
+            try:
+                value = float(data.get(field))
+            except (TypeError, ValueError):
+                return f"{field} missing or not numeric"
+            if not low <= value <= high:  # also rejects NaN
+                return f"{field} out of range"
+        return None
 
     def start(self, loop: asyncio.AbstractEventLoop):
         self.loop = loop
-        
+        self._load_known_nodes()
+
         # Paho MQTT v2 protocol setup
         client_id = f"{settings.MQTT_CLIENT_ID}_{int(datetime.now().timestamp())}"
         self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=client_id
         )
+        if settings.MQTT_USERNAME:
+            self.client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
@@ -55,12 +86,15 @@ class MQTTIngestionService:
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
+            self.connected = True
             logger.info(f"Connected to MQTT Broker! Subscribing to: {settings.MQTT_TOPIC_TELEMETRY}")
             client.subscribe(settings.MQTT_TOPIC_TELEMETRY)
         else:
+            self.connected = False
             logger.error(f"MQTT connection failed with code {rc}")
 
     def _on_disconnect(self, client, userdata, disconnect_flags, rc, properties=None):
+        self.connected = False
         logger.warning(f"Disconnected from MQTT broker (rc={rc}). Auto-reconnecting...")
 
     def _on_message(self, client, userdata, msg):
@@ -84,23 +118,33 @@ class MQTTIngestionService:
         4. Persist to SQLite Database
         5. Module E: Real-Time WebSocket Broadcast
         """
-        node_id = data.get("node_id")
-        if not node_id:
+        if not self._known_nodes:
+            self._load_known_nodes()
+        reason = self.validate_payload(data, self._known_nodes)
+        if reason:
+            self.rejected_messages += 1
+            logger.warning("Rejected telemetry (%s): %.120s", reason, data)
             return
+        self.last_message_at = datetime.now(timezone.utc)
 
-        water_level = float(data.get("water_level_cm", 0.0))
-        rainfall = float(data.get("rainfall_mm", 0.0))
-        soil_moisture = float(data.get("soil_moisture_pct", 0.0))
-        
-        # Parse timestamp if available
+        node_id = data["node_id"]
+        water_level = float(data["water_level_cm"])
+        rainfall = float(data["rainfall_mm"])
+        soil_moisture = float(data["soil_moisture_pct"])
+
+        # Trust the sensor clock only when it is plausible; otherwise stamp on arrival.
+        now = datetime.now(timezone.utc)
+        ts = now
         raw_ts = data.get("timestamp")
         if raw_ts:
             try:
-                ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+                parsed = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                if abs((parsed - now).total_seconds()) <= 300:
+                    ts = parsed
             except Exception:
-                ts = datetime.now(timezone.utc)
-        else:
-            ts = datetime.now(timezone.utc)
+                pass
 
         # --- Module C: Run Custom Anomaly & Risk Engine ---
         analysis = anomaly_engine.process_reading(
