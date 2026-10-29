@@ -8,8 +8,8 @@
     "region": "Bagmati Province",
     "description": "Langtang and Bhotekoshi headwaters flowing south past Dhunche, Betrawati and Trishuli Bazaar.",
     "center": [
-      28.05,
-      85.3
+      28.071,
+      85.358
     ],
     "zoom": 10,
     "simulated": true
@@ -19,9 +19,9 @@
       "node_id": "NODE_LANGTANG_01",
       "name": "Langtang Glacier Catchment",
       "type": "SENSOR_STATION",
-      "elevation_m": 3820,
-      "lat": 28.215,
-      "lng": 85.57,
+      "elevation_m": 3790,
+      "lat": 28.20727,
+      "lng": 85.56542,
       "description": "High-altitude glacial & rainfall runoff gauge station",
       "baseline": {
         "rainfall_mm": 2.5,
@@ -50,9 +50,9 @@
       "node_id": "NODE_BHOTEKOSHI_02",
       "name": "Upper Bhotekoshi Gorge",
       "type": "SENSOR_STATION",
-      "elevation_m": 2410,
-      "lat": 28.16,
-      "lng": 85.34,
+      "elevation_m": 1410,
+      "lat": 28.16048,
+      "lng": 85.33763,
       "description": "Steep rocky canyon prone to flash torrents and debris blockages",
       "baseline": {
         "rainfall_mm": 3.0,
@@ -81,9 +81,9 @@
       "node_id": "NODE_SYAPRUBESI_03",
       "name": "Syaprubesi River Confluence",
       "type": "SENSOR_STATION",
-      "elevation_m": 1460,
-      "lat": 28.155,
-      "lng": 85.335,
+      "elevation_m": 1398,
+      "lat": 28.15739,
+      "lng": 85.33277,
       "description": "Major confluence of Langtang Khola and Bhotekoshi River",
       "baseline": {
         "rainfall_mm": 2.0,
@@ -112,9 +112,9 @@
       "node_id": "NODE_MAILUNG_04",
       "name": "Mailung Landslide Sector",
       "type": "SENSOR_STATION",
-      "elevation_m": 1050,
-      "lat": 28.05,
-      "lng": 85.24,
+      "elevation_m": 1008,
+      "lat": 28.08527,
+      "lng": 85.22862,
       "description": "Unstable hillslope monitor with high pore pressure & soil saturation risk",
       "baseline": {
         "rainfall_mm": 4.0,
@@ -143,9 +143,9 @@
       "node_id": "NODE_BETRAWATI_05",
       "name": "Betrawati Bridge Gauge",
       "type": "SENSOR_STATION",
-      "elevation_m": 620,
-      "lat": 27.978,
-      "lng": 85.182,
+      "elevation_m": 608,
+      "lat": 27.97796,
+      "lng": 85.18174,
       "description": "Mid-basin flood warning post above densely inhabited settlement",
       "baseline": {
         "rainfall_mm": 1.5,
@@ -179,9 +179,9 @@
       "node_id": "NODE_TRISHULI_06",
       "name": "Trishuli Hydropower Headworks",
       "type": "SENSOR_STATION",
-      "elevation_m": 570,
-      "lat": 27.935,
-      "lng": 85.15,
+      "elevation_m": 543,
+      "lat": 27.93396,
+      "lng": 85.15086,
       "description": "Critical infrastructure barrage & settlement monitoring terminal",
       "baseline": {
         "rainfall_mm": 1.0,
@@ -211,40 +211,40 @@
     {
       "settlement_id": "SETTLE_DHUNCHE",
       "name": "Dhunche Town & District Hospital",
-      "lat": 28.113,
-      "lng": 85.297,
+      "lat": 28.10527,
+      "lng": 85.29242,
       "population": 12000,
       "evacuation_zone": "Highland Helipad & Upper Ridge Safe Zone"
     },
     {
       "settlement_id": "SETTLE_SYAPRU",
       "name": "Syaprubesi Bazaar",
-      "lat": 28.15,
-      "lng": 85.33,
+      "lat": 28.15048,
+      "lng": 85.32763,
       "population": 4500,
       "evacuation_zone": "Monastery Ridge Evacuation Point"
     },
     {
       "settlement_id": "SETTLE_BETRAWATI",
       "name": "Betrawati Market & Riverbank Settlement",
-      "lat": 27.98,
-      "lng": 85.185,
+      "lat": 28.01527,
+      "lng": 85.17362,
       "population": 8500,
       "evacuation_zone": "Betrawati Higher Secondary Grounds"
     },
     {
       "settlement_id": "SETTLE_TRISHULI",
       "name": "Trishuli Bazaar & Hydropower Colony",
-      "lat": 27.93,
-      "lng": 85.148,
+      "lat": 27.92996,
+      "lng": 85.14774,
       "population": 26000,
       "evacuation_zone": "District Sports Stadium & Trishuli Hospital Heights"
     },
     {
       "settlement_id": "SETTLE_GALCHI",
       "name": "Galchi Prithvi Highway Junction",
-      "lat": 27.818,
-      "lng": 85.035,
+      "lat": 27.81696,
+      "lng": 85.03586,
       "population": 15000,
       "evacuation_zone": "Prithvi Highway Elevated Bypass"
     }

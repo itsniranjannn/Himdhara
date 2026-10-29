@@ -7,8 +7,8 @@
     "full_name": "Karnali River Basin",
     "region": "Sudurpashchim & Karnali Provinces",
     "center": [
-      28.65,
-      81.3
+      28.641,
+      81.331
     ],
     "zoom": 9,
     "simulated": true,
@@ -19,9 +19,9 @@
       "node_id": "NODE_KAR_UPPER_01",
       "name": "Upper Karnali Gorge Gauge",
       "type": "SENSOR_STATION",
-      "elevation_m": 1200,
-      "lat": 28.95,
-      "lng": 81.9,
+      "elevation_m": 576,
+      "lat": 28.81538,
+      "lng": 81.55177,
       "description": "Steep gorge reach with rapid runoff response",
       "baseline": {
         "rainfall_mm": 3.0,
@@ -45,9 +45,9 @@
       "node_id": "NODE_KAR_CHISAPANI_02",
       "name": "Chisapani Gauge Station",
       "type": "SENSOR_STATION",
-      "elevation_m": 215,
-      "lat": 28.642,
-      "lng": 81.287,
+      "elevation_m": 191,
+      "lat": 28.64323,
+      "lng": 81.28465,
       "description": "Gorge outlet where the Karnali meets the plains",
       "baseline": {
         "rainfall_mm": 2.0,
@@ -81,9 +81,9 @@
       "node_id": "NODE_KAR_RAJAPUR_03",
       "name": "Rajapur Barrage Site",
       "type": "SENSOR_STATION",
-      "elevation_m": 150,
-      "lat": 28.47,
-      "lng": 81.1,
+      "elevation_m": 147,
+      "lat": 28.46714,
+      "lng": 81.10964,
       "description": "Floodplain gauge above the Rajapur island settlements",
       "baseline": {
         "rainfall_mm": 1.5,
@@ -108,24 +108,24 @@
     {
       "settlement_id": "SETTLE_CHISAPANI",
       "name": "Chisapani Bazaar",
-      "lat": 28.643,
-      "lng": 81.286,
+      "lat": 28.64423,
+      "lng": 81.28365,
       "population": 6000,
       "evacuation_zone": "Chisapani Hill School Ground"
     },
     {
       "settlement_id": "SETTLE_TIKAPUR",
       "name": "Tikapur Riverside Wards",
-      "lat": 28.527,
-      "lng": 81.128,
+      "lat": 28.52823,
+      "lng": 81.12565,
       "population": 60000,
       "evacuation_zone": "Tikapur Higher Ground Campus"
     },
     {
       "settlement_id": "SETTLE_RAJAPUR",
       "name": "Rajapur Island Settlements",
-      "lat": 28.465,
-      "lng": 81.105,
+      "lat": 28.46214,
+      "lng": 81.11464,
       "population": 35000,
       "evacuation_zone": "Embankment Safe Shelter Block"
     }

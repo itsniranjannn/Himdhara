@@ -34,7 +34,9 @@ const PAIRS = [
     ["normal", bg, 4.5, "NORMAL label"], ["watch", bg, 4.5, "WATCH label"], ["warning", bg, 4.5, "WARNING label"],
     ["critical", bg, 4.5, "CRITICAL label"], ["stale", bg, 4.5, "OFFLINE label"],
   ]),
+  ...["surface-0", "surface-1"].map((bg) => ["accent", bg, 4.5, "accent highlights"]),
   ["on-brand", "brand", 4.5, "text on primary buttons"],
+  ["on-accent", "accent", 4.5, "text on accent buttons"],
 ];
 
 let failures = 0;

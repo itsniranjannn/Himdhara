@@ -58,6 +58,9 @@ def seed_river_network():
                 persisted = json.loads(existing.thresholds) if existing.thresholds else thresholds
                 anomaly_engine.set_node_thresholds(node_id, persisted)
                 existing.basin_id = n["basin_id"]
+                # Position and elevation come from the basin file so corrections reach existing databases.
+                existing.lat, existing.lng = float(n["lat"]), float(n["lng"])
+                existing.elevation_m = float(n["elevation_m"])
                 existing.downstream_targets = json.dumps(n.get("downstream_targets", []))
                 updated += 1
         for s in data["settlements"]:

@@ -7,8 +7,8 @@
     "full_name": "Koshi (Sapta Koshi) River Basin",
     "region": "Koshi Province",
     "center": [
-      27.15,
-      86.3
+      27.149,
+      86.431
     ],
     "zoom": 8,
     "simulated": true,
@@ -19,9 +19,9 @@
       "node_id": "NODE_KOSHI_BARHABISE_01",
       "name": "Sunkoshi at Barhabise",
       "type": "SENSOR_STATION",
-      "elevation_m": 800,
-      "lat": 27.777,
-      "lng": 85.892,
+      "elevation_m": 837,
+      "lat": 27.77718,
+      "lng": 85.89013,
       "description": "Upper Sunkoshi gauge below the Tibet border catchment",
       "baseline": {
         "rainfall_mm": 3.0,
@@ -50,9 +50,9 @@
       "node_id": "NODE_KOSHI_DOLALGHAT_02",
       "name": "Sunkoshi at Dolalghat",
       "type": "SENSOR_STATION",
-      "elevation_m": 640,
-      "lat": 27.637,
-      "lng": 85.712,
+      "elevation_m": 616,
+      "lat": 27.63516,
+      "lng": 85.70984,
       "description": "Mid-basin gauge above the bazaar",
       "baseline": {
         "rainfall_mm": 2.5,
@@ -81,9 +81,9 @@
       "node_id": "NODE_KOSHI_CHATARA_03",
       "name": "Chatara Gorge Gauge",
       "type": "SENSOR_STATION",
-      "elevation_m": 200,
-      "lat": 26.817,
-      "lng": 87.159,
+      "elevation_m": 106,
+      "lat": 26.86009,
+      "lng": 87.15143,
       "description": "Gorge where the Koshi enters the plains",
       "baseline": {
         "rainfall_mm": 2.0,
@@ -112,9 +112,9 @@
       "node_id": "NODE_KOSHI_BARRAGE_04",
       "name": "Koshi Barrage Headworks",
       "type": "SENSOR_STATION",
-      "elevation_m": 70,
-      "lat": 26.52,
-      "lng": 86.938,
+      "elevation_m": 73,
+      "lat": 26.52122,
+      "lng": 86.92981,
       "description": "Barrage gauge protecting the Terai floodplain",
       "baseline": {
         "rainfall_mm": 1.5,
@@ -144,40 +144,40 @@
     {
       "settlement_id": "SETTLE_BARHABISE",
       "name": "Barhabise Bazaar",
-      "lat": 27.779,
-      "lng": 85.894,
+      "lat": 27.77918,
+      "lng": 85.89213,
       "population": 7000,
       "evacuation_zone": "Barhabise Higher Ground School"
     },
     {
       "settlement_id": "SETTLE_DOLALGHAT",
       "name": "Dolalghat Bazaar",
-      "lat": 27.638,
-      "lng": 85.709,
+      "lat": 27.63616,
+      "lng": 85.70684,
       "population": 9000,
       "evacuation_zone": "Dolalghat Hill Community Ground"
     },
     {
       "settlement_id": "SETTLE_CHATARA",
       "name": "Chatara Bazaar",
-      "lat": 26.814,
-      "lng": 87.162,
+      "lat": 26.85709,
+      "lng": 87.15443,
       "population": 15000,
       "evacuation_zone": "Chatara Elevated Campus Ground"
     },
     {
       "settlement_id": "SETTLE_KUSAHA",
       "name": "Kusaha Barrage Settlements",
-      "lat": 26.533,
-      "lng": 86.938,
+      "lat": 26.53422,
+      "lng": 86.92981,
       "population": 14000,
       "evacuation_zone": "Kusaha Raised Embankment Shelter"
     },
     {
       "settlement_id": "SETTLE_KOSHI_TAPPU",
       "name": "Koshi Tappu Riverside Villages",
-      "lat": 26.65,
-      "lng": 86.99,
+      "lat": 26.65122,
+      "lng": 86.98181,
       "population": 20000,
       "evacuation_zone": "Embankment Safe Shelter Block"
     }

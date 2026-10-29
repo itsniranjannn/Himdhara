@@ -184,3 +184,22 @@ def test_telegram_failure_hides_token(db, monkeypatch):
     monkeypatch.setattr("app.notifier.urllib.request.urlopen", boom)
     status, error = notifier.send_telegram("hello")
     assert status == "FAILED" and "SECRET" not in error
+
+
+def test_coordinates_are_inside_nepal_and_settlements_sit_near_their_station():
+    import math
+    from app import topology
+
+    def km(a, b):
+        k = math.cos(math.radians(a["lat"]))
+        return math.hypot((a["lat"] - b["lat"]) * 111.0, (a["lng"] - b["lng"]) * 111.0 * k)
+
+    for basin in topology.load_basins():
+        by_id = {n["node_id"]: n for n in basin["nodes"]}
+        by_settlement = {s["settlement_id"]: s for s in basin["settlements"]}
+        for p in list(basin["nodes"]) + list(basin["settlements"]):
+            assert 26.3 <= p["lat"] <= 30.5 and 80.0 <= p["lng"] <= 88.3, p["name"]
+        for n in basin["nodes"]:
+            for t in n.get("downstream_targets", []):
+                if t["type"] == "settlement":
+                    assert km(n, by_settlement[t["target_id"]]) < 40, (n["name"], t["target_id"])

@@ -36,11 +36,11 @@ function AutoFitBounds({ nodes, settlements }) {
 // Helper to create custom SVG div icons based on station risk status
 function createStationIcon(riskLevel, isSelected) {
   const colorMap = {
-    NORMAL: "#42c98a",
-    WATCH: "#d8b34b",
-    WARNING: "#e68a52",
-    CRITICAL: "#ed6b72",
-    STALE: "#9aa8ae"
+    NORMAL: "#4fdc8c",
+    WATCH: "#f0c23a",
+    WARNING: "#ff9650",
+    CRITICAL: "#ff6b7d",
+    STALE: "#93adb6"
   };
   const color = colorMap[riskLevel] || colorMap.NORMAL;
   const isCritical = riskLevel === "CRITICAL";
@@ -87,13 +87,13 @@ function createStationIcon(riskLevel, isSelected) {
 function createSettlementIcon() {
   const html = `
     <div style="
-      background: #2c8fa0;
-      border: 2px solid #eaf8f7;
+      background: #ffb23e;
+      border: 2px solid #1d1200;
       border-radius: 4px;
       width: 14px;
       height: 14px;
       transform: rotate(45deg);
-      box-shadow: 0 0 0 3px rgba(44, 143, 160, 0.2);
+      box-shadow: 0 0 0 3px rgba(255, 178, 62, 0.28);
     "></div>
   `;
   return L.divIcon({
@@ -159,7 +159,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
             key={reach.id}
             positions={[reach.from, reach.to]}
             pathOptions={{
-              color: reach.type === "settlement" ? "#5fb9c3" : "#2c8fa0",
+              color: reach.type === "settlement" ? "#ffb23e" : "#3fc8ef",
               weight: reach.type === "settlement" ? 2 : 4,
               opacity: 0.7,
               dashArray: reach.type === "settlement" ? "4, 6" : undefined
@@ -204,7 +204,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                     style={{
                       marginTop: "8px",
                     background: "var(--brand)",
-                      color: "#082027",
+                      color: "var(--on-brand)",
                       border: "none",
                       padding: "4px 8px",
                       borderRadius: "4px",

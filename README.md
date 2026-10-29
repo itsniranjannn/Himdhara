@@ -65,7 +65,7 @@ The system monitors several Nepal river basins at once. Each basin is one JSON f
 | `gandaki.json` | Kaligandaki - Narayani | 4 | 4 |
 | `karnali.json` | Karnali | 3 | 3 |
 
-**All basins are demonstration data.** Sensors are simulated and station/settlement coordinates, populations and evacuation points are illustrative, not surveyed. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
+**Locations are checked, readings are simulated.** Every station sits on its river: coordinates were snapped to the nearest named river in OpenStreetMap, and each station's elevation is the free Open-Meteo terrain value at that point (an audit found 9 of 22 original positions were off the river and they were corrected). Sensor readings are simulated, and populations, evacuation points and travel times are illustrative, not surveyed. Station names are descriptive, not official DHM gauge identifiers. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
 
 ### Adding a basin
 

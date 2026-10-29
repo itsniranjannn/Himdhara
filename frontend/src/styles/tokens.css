@@ -20,31 +20,34 @@
   color-scheme: dark;
 
   /* surfaces: 0 page · 1 panels/sidebar · 2 raised or hover · 3 selected/pressed */
-  --surface-0: #0a1020;
-  --surface-1: #101830;
-  --surface-2: #16213d;
-  --surface-3: #1d2b4d;
-  --border: #26365c;
-  --border-strong: #3b4d7a;
+  --surface-0: #04141b;
+  --surface-1: #0a2029;
+  --surface-2: #0f2c38;
+  --surface-3: #163c4c;
+  --border: #1d4455;
+  --border-strong: #2f6479;
 
   /* text */
-  --text-1: #eef3ff;
-  --text-2: #b9c5df;
-  --text-3: #8f9dbc;
+  --text-1: #ebf8f9;
+  --text-2: #b4d0d6;
+  --text-3: #87abb4;
 
-  /* brand */
-  --brand: #6c9cff;
-  --brand-hover: #94b6ff;
-  --brand-muted: #3f62b5;
-  --brand-soft: rgba(108, 156, 255, .14);
-  --on-brand: #0a1020;
+  /* brand: glacier-melt cyan, with a marigold accent for highlights and calls to action */
+  --brand: #3fc8ef;
+  --brand-hover: #7ddcf7;
+  --brand-muted: #1d7fa0;
+  --brand-soft: rgba(63, 200, 239, .14);
+  --on-brand: #04141b;
+  --accent: #ffb23e;
+  --accent-soft: rgba(255, 178, 62, .15);
+  --on-accent: #1d1200;
 
   /* risk scale: never convey risk by colour alone, always pair with a label */
-  --normal: #3fd08a;
-  --watch: #e5b93c;
+  --normal: #4fdc8c;
+  --watch: #f0c23a;
   --warning: #ff9650;
   --critical: #ff6b7d;
-  --stale: #93a0ba;
+  --stale: #93adb6;
 
   /* type */
   --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", system-ui, sans-serif;
@@ -96,22 +99,25 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --surface-0: #edf1f8;
+  --surface-0: #ecf5f7;
   --surface-1: #ffffff;
-  --surface-2: #f4f7fc;
-  --surface-3: #e2e9f5;
-  --border: #d2dbea;
-  --border-strong: #a9b8d2;
+  --surface-2: #f2f8fa;
+  --surface-3: #dcebef;
+  --border: #c6dde3;
+  --border-strong: #93b6c1;
 
-  --text-1: #0d1a2e;
-  --text-2: #33435d;
-  --text-3: #526480;
+  --text-1: #07202a;
+  --text-2: #29454f;
+  --text-3: #476570;
 
-  --brand: #1d4ed8;
-  --brand-hover: #1740b3;
-  --brand-muted: #8aa8ee;
-  --brand-soft: rgba(29, 78, 216, .09);
+  --brand: #0a6a8c;
+  --brand-hover: #07566f;
+  --brand-muted: #87c3d6;
+  --brand-soft: rgba(10, 106, 140, .09);
   --on-brand: #ffffff;
+  --accent: #9a5200;
+  --accent-soft: rgba(154, 82, 0, .12);
+  --on-accent: #ffffff;
 
   --normal: #157a47;
   --watch: #8a5d00;
