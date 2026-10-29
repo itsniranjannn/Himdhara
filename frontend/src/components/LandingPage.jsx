@@ -101,7 +101,14 @@ export default function LandingPage({ basins = [], nodes = [], settlements = [],
           <div className="landing-hero-ctas"><button className="landing-primary large" onClick={() => navigate("/app/monitor")}>Open dashboard <ArrowRight size={17} /></button><button className="landing-secondary" onClick={() => navigate("/bulletin")}>View public bulletin <ArrowDownRight size={17} /></button></div>
           <div className="landing-trust"><Radio size={15} /><span>Live telemetry · explainable risk · local response</span></div>
         </div>
-        <motion.div className="hero-signal" animate={reducedMotion ? undefined : { y: [0, -7, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}><div className="signal-orbit orbit-one" /><div className="signal-orbit orbit-two" /><div className="signal-core"><Waves size={32} /><span>EARLY<br />WARNING</span></div></motion.div>
+        <motion.aside className="hero-board" aria-label="Live basin status" animate={reducedMotion ? undefined : { y: [0, -6, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
+          <header><Waves size={16} /> <strong>Live basin status</strong><span>{nodes.length} stations</span></header>
+          <ul>{basins.map((item) => <li key={item.basin_id}><button onClick={() => openBasin(item.basin_id)}>
+            <span className={`board-dot ${item.open_alerts ? "alert" : "calm"}`} />
+            <span className="board-name"><b>{item.name}</b><small>{item.stations} stations · {item.settlements} settlements</small></span>
+            <span className={`board-state ${item.open_alerts ? "alert" : "calm"}`}>{item.open_alerts ? `${item.open_alerts} open` : "Calm"}</span>
+          </button></li>)}{!basins.length && <li className="board-empty">{apiDown ? "Live data unavailable" : "Connecting…"}</li>}</ul>
+        </motion.aside>
       </section>
 
       <Reveal className="landing-section intro-strip"><p>Built for the seconds between a changing river and a community that needs to know.</p><span>Operational clarity, from sensor to settlement.</span></Reveal>

@@ -141,7 +141,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
       <MapContainer
         center={centerPosition}
         zoom={10}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer

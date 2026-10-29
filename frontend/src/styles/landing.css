@@ -169,3 +169,24 @@
 .preview-tabs button { padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; background: color-mix(in srgb, var(--surface-1) 90%, transparent); color: var(--text-2); font-size: var(--text-xs); font-weight: 600; }
 .preview-tabs button.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
 .network-preview { padding-top: 54px; }
+
+/* hero: unfilled river path must not render as a black shape; live status board replaces the orbit graphic */
+.contour-river { fill: none; }
+.hero-board { position: relative; justify-self: center; width: min(100%, 380px); padding: var(--space-5); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface-1) 82%, transparent); backdrop-filter: blur(14px); box-shadow: var(--shadow-float); }
+.hero-board header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); color: var(--brand); }
+.hero-board header strong { flex: 1; color: var(--text-1); font: 700 var(--text-sm) var(--font-display); }
+.hero-board header span { color: var(--text-3); font: 600 11px var(--font-mono); }
+.hero-board ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.hero-board li button { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-1); text-align: left; }
+.hero-board li button:hover { background: var(--brand-soft); }
+.board-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; }
+.board-dot.calm { background: var(--normal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--normal) 20%, transparent); }
+.board-dot.alert { background: var(--critical); box-shadow: 0 0 0 4px color-mix(in srgb, var(--critical) 25%, transparent); animation: live-pulse 1.6s ease-in-out infinite; }
+.board-name { flex: 1; min-width: 0; }
+.board-name b { display: block; font-size: var(--text-sm); font-weight: 700; }
+.board-name small { color: var(--text-3); font-size: 11px; }
+.board-state { font: 700 11px var(--font-mono); letter-spacing: .03em; }
+.board-state.calm { color: var(--normal); }
+.board-state.alert { color: var(--critical); }
+.board-empty { padding: var(--space-4); color: var(--text-3); text-align: center; }
+@media (max-width: 800px) { .hero-board { margin-top: 40px; width: 100%; } }
