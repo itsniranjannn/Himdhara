@@ -15,7 +15,7 @@ function Subscribe({ t, settlements, lang }) {
     const form = new FormData(element);
     setState({ status: "busy", text: "" });
     try {
-      await subscribePublic(form.get("settlement"), form.get("phone"), form.get("language"));
+      await subscribePublic(form.get("settlement"), form.get("email"), form.get("language"));
       setState({ status: "ok", text: t.subscribed });
       element.reset();
     } catch (failure) {
@@ -28,7 +28,7 @@ function Subscribe({ t, settlements, lang }) {
     <p className="muted">{t.subscribeBody}</p>
     <form className="subscribe-form" onSubmit={submit}>
       <label className="field"><span>{t.settlement}</span><select name="settlement" required>{settlements.map((item) => <option key={item.settlement_id} value={item.settlement_id}>{item.name}</option>)}</select></label>
-      <label className="field"><span>{t.phone}</span><input name="phone" inputMode="tel" required placeholder={t.phoneHint} autoComplete="tel-national" /></label>
+      <label className="field"><span>{t.email}</span><input name="email" type="email" required placeholder={t.emailHint} autoComplete="email" /></label>
       <label className="field"><span>{t.languageLabel}</span><select name="language" key={lang} defaultValue={lang}>{Object.entries(LANGUAGES).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
       <button className="demo-submit" disabled={state.status === "busy"}>{state.status === "busy" ? t.subscribing : t.subscribe}</button>
     </form>
@@ -37,9 +37,9 @@ function Subscribe({ t, settlements, lang }) {
 }
 
 export default function BulletinPage({ basins, basin, onBasinChange, nodes, openAlerts, settlements, live, now, staleSeconds, apiDown, loaded, weather, theme, onToggleTheme, navigate }) {
-  const [lang, setLang] = useState(() => { try { return localStorage.getItem("trishuli-lang") || "en"; } catch { return "en"; } });
+  const [lang, setLang] = useState(() => { try { return localStorage.getItem("himdhara-lang") || "en"; } catch { return "en"; } });
   const t = messages[lang];
-  const choose = (code) => { setLang(code); try { localStorage.setItem("trishuli-lang", code); } catch { /* storage unavailable */ } };
+  const choose = (code) => { setLang(code); try { localStorage.setItem("himdhara-lang", code); } catch { /* storage unavailable */ } };
   const sortedAlerts = [...openAlerts].sort((a, b) => a.eta_minutes - b.eta_minutes);
   const status = apiDown ? "offline" : sortedAlerts.length ? "active" : "clear";
   const StatusIcon = status === "offline" ? WifiOff : status === "active" ? ShieldAlert : ShieldCheck;

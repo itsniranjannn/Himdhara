@@ -1,27 +1,29 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import { ArrowRight, ArrowUpRight, CloudRain, GitBranch, MapPin, Mountain, Play, Radio, ScanLine, ShieldCheck, Waves, Workflow } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CloudRain, GitBranch, Mail, MapPin, Mountain, Play, Radio, ScanLine, ShieldCheck, Waves } from "lucide-react";
 import Logo from "./Logo";
 import Modal from "./Modal";
 import { credits } from "../config/credits";
 import { brand } from "../config/brand";
 
+const Terrain3D = React.lazy(() => import("./Terrain3D"));
+
 const steps = [
   { n: "01", title: "Sensors", icon: CloudRain, short: "Water level, rain and soil moisture every five seconds.",
     long: "Each gauge station reports water level, rainfall and soil moisture. Readings are validated at the door: out-of-range values and malformed payloads are rejected before they can touch a risk score.",
     points: ["Level in centimetres, rain in millimetres, soil as a percentage", "Stations that go quiet are flagged OFFLINE, never shown as safe", "Simulated publishers stand in until field hardware is installed"] },
-  { n: "02", title: "MQTT", icon: Radio, short: "A resilient message stream carries each reading downstream.",
+  { n: "02", title: "MQTT", icon: Radio, short: "A light message stream carries each reading downstream.",
     long: "Readings travel over MQTT, the lightweight protocol built for weak links. A private topic prefix keeps the stream separate from other users of the public broker.",
-    points: ["Publish and subscribe, no polling", "Survives dropped connections and reconnects on its own", "The browser gets the same stream over a WebSocket"] },
-  { n: "03", title: "Analysis", icon: ScanLine, short: "EMA baselines and the HSI score make every decision explainable.",
+    points: ["Publish and subscribe, no polling", "Reconnects on its own after a dropped link", "The browser gets the same stream over a WebSocket"] },
+  { n: "03", title: "Analysis", icon: ScanLine, short: "A moving average and the HSI score make each decision explainable.",
     long: "An exponential moving average smooths noise, the rate of change shows how fast the river is rising, and the Hazard Severity Index blends level, rate and soil saturation into one score.",
     points: ["HSI = level + 0.5 x rate + soil", "Bands: Normal, Watch, Warning, Critical", "Every decision stores the reason it was made"] },
-  { n: "04", title: "Routing", icon: GitBranch, short: "Dijkstra ETA routing follows the basin graph downstream.",
-    long: "Each basin is a graph of stations and settlements with measured travel times. When a station escalates, shortest-path routing tells every downstream settlement how long until the wave reaches it.",
+  { n: "04", title: "Routing", icon: GitBranch, short: "Shortest-path routing follows the basin graph downstream.",
+    long: "Each basin is a graph of stations and settlements with measured travel times. When a station escalates, Dijkstra routing tells every downstream settlement how long until the wave reaches it.",
     points: ["Warnings never cross into another basin", "Settlements are ordered by arrival time", "Evacuation points are attached to each community"] },
-  { n: "05", title: "Alerts", icon: Workflow, short: "Settlements get ordered, actionable warnings in their language.",
-    long: "Operators acknowledge and resolve alerts while subscribers receive Telegram, email or SMS messages in English or Nepali. Every delivery attempt is logged.",
-    points: ["Active, acknowledged, resolved: nothing is lost", "Free channels first: Telegram and email", "A public bulletin for anyone, no login"] }
+  { n: "05", title: "Email", icon: Mail, short: "Registered contacts get an email in English or Nepali.",
+    long: "Operators acknowledge and resolve alerts while subscribers receive an email in English or Nepali with the settlement, the arrival time and the evacuation point. Every delivery attempt is logged.",
+    points: ["Active, acknowledged, resolved: nothing is lost", "Free email, no paid gateway", "A public bulletin for anyone, no login"] }
 ];
 
 const features = [
@@ -65,14 +67,13 @@ function basinFrame(nodes, settlements, width = 760, height = 440) {
   return { project: (lng, lat) => [offX + (lng - Math.min(...lngs)) * k * scale, offY + (Math.max(...lats) - lat) * scale] };
 }
 
-function Reveal({ children, className = "", delay = 0, as = "div" }) {
+function Reveal({ children, className = "", delay = 0 }) {
   const ref = useRef(null);
-  const visible = useInView(ref, { once: true, amount: 0.15 });
+  const visible = useInView(ref, { once: true, amount: 0.12 });
   const reduced = useReducedMotion();
-  const Tag = motion[as];
-  return <Tag ref={ref} className={className} initial={reduced ? false : { opacity: 0, y: 34, filter: "blur(6px)" }}
-    animate={visible || reduced ? { opacity: 1, y: 0, filter: "blur(0px)" } : undefined}
-    transition={{ duration: .8, delay, ease: [0.16, 1, 0.3, 1] }}>{children}</Tag>;
+  return <motion.div ref={ref} className={className} initial={reduced ? false : { opacity: 0, y: 28, clipPath: "inset(0 0 18% 0)" }}
+    animate={visible || reduced ? { opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" } : undefined}
+    transition={{ duration: .75, delay, ease: [0.16, 1, 0.3, 1] }}>{children}</motion.div>;
 }
 
 function CountUp({ value, suffix = "" }) {
@@ -94,25 +95,18 @@ function CountUp({ value, suffix = "" }) {
   return <span ref={ref}>{count}{suffix}</span>;
 }
 
-// Cursor-following glow, used on cards.
-function Spotlight({ children, className = "", ...rest }) {
-  const onMove = (event) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty("--mx", `${event.clientX - box.left}px`);
-    event.currentTarget.style.setProperty("--my", `${event.clientY - box.top}px`);
-  };
-  return <div className={`spot ${className}`} onPointerMove={onMove} {...rest}>{children}</div>;
-}
-
-function Ridges({ scrollY }) {
-  const back = useTransform(scrollY, [0, 700], [0, -70]);
-  const mid = useTransform(scrollY, [0, 700], [0, -130]);
-  const front = useTransform(scrollY, [0, 700], [0, -210]);
-  return <div className="ridges" aria-hidden="true">
-    <motion.svg style={{ y: back }} viewBox="0 0 1440 320" preserveAspectRatio="none" className="ridge r1"><path d="M0 220 L120 140 L210 190 L330 80 L430 170 L560 110 L690 200 L800 90 L930 180 L1060 70 L1180 160 L1300 110 L1440 190 V320 H0Z" /></motion.svg>
-    <motion.svg style={{ y: mid }} viewBox="0 0 1440 320" preserveAspectRatio="none" className="ridge r2"><path d="M0 250 L90 200 L200 240 L320 160 L450 230 L580 170 L700 240 L840 150 L960 230 L1090 180 L1220 240 L1340 190 L1440 230 V320 H0Z" /></motion.svg>
-    <motion.svg style={{ y: front }} viewBox="0 0 1440 320" preserveAspectRatio="none" className="ridge r3"><path d="M0 290 L140 255 L260 285 L400 240 L540 285 L700 250 L860 290 L1010 245 L1160 285 L1300 255 L1440 285 V320 H0Z" /></motion.svg>
-  </div>;
+// Slowly drifting contour lines behind the hero, nudged by the cursor.
+function Contours() {
+  const reduced = useReducedMotion();
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 800], [0, -90]);
+  const lines = Array.from({ length: 14 }, (_, i) => {
+    const o = i * 38;
+    return `M-40 ${150 + o}C180 ${60 + o} 330 ${260 + o} 560 ${150 + o}S920 ${40 + o} 1260 ${170 + o}`;
+  });
+  return <motion.svg className="contours" style={reduced ? undefined : { y }} viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    {lines.map((d, i) => <path key={i} d={d} className={i % 4 === 0 ? "major" : ""} style={{ animationDelay: `${-i * 1.3}s` }} />)}
+  </motion.svg>;
 }
 
 function NepalMap({ basins, nodes, activeId, onPick }) {
@@ -128,10 +122,6 @@ function NepalMap({ basins, nodes, activeId, onPick }) {
   const labelFor = (id, i) => LABELS[id] || [i % 2 ? 60 : -60, i % 2 ? 50 : -50, i % 2 ? "start" : "end"];
 
   return <svg className="nepal-map" viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="img" aria-label="Map of Nepal with the monitored river basins">
-    <defs>
-      <linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--brand)" stopOpacity=".22" /><stop offset="1" stopColor="var(--brand)" stopOpacity=".04" /></linearGradient>
-      <filter id="glow"><feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-    </defs>
     <path className="nepal-land" d={`${smooth([...outline, outline[0]])}Z`} />
     {Array.from({ length: 9 }, (_, i) => { const [x] = toMap(80 + i, 28); return <line key={`m${i}`} className="graticule" x1={x} y1="0" x2={x} y2={MAP.height} />; })}
     {Array.from({ length: 5 }, (_, i) => { const [, y] = toMap(80, 27 + i); return <line key={`p${i}`} className="graticule" x1="0" y1={y} x2={MAP.width} y2={y} />; })}
@@ -142,8 +132,7 @@ function NepalMap({ basins, nodes, activeId, onPick }) {
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onPick(basin.basin_id)}>
         {pts.length > 1 && <path className="hot-river" d={smooth(pts)} />}
         <circle className="hot-ring" cx={c[0]} cy={c[1]} r="14" style={{ animationDelay: `${index * .4}s` }} />
-        <circle className="hot-ring two" cx={c[0]} cy={c[1]} r="14" style={{ animationDelay: `${index * .4 + 1.1}s` }} />
-        <circle className="hot-dot" cx={c[0]} cy={c[1]} r="7" filter="url(#glow)" />
+        <circle className="hot-dot" cx={c[0]} cy={c[1]} r="7" />
         <line className="hot-leader" x1={c[0]} y1={c[1]} x2={c[0] + dx} y2={c[1] + dy + (dy < 0 ? 22 : -16)} />
         <text className="hot-label" x={c[0] + dx} y={c[1] + dy} textAnchor={anchor}>{basin.name}</text>
         <text className="hot-sub" x={c[0] + dx} y={c[1] + dy + 17} textAnchor={anchor}>{basin.stations} stations</text>
@@ -169,12 +158,11 @@ function BasinExplorer({ basin, nodes, settlements, live, onOpenStation }) {
 
   return <div className="explorer-stage">
     <svg viewBox="0 0 760 440" role="img" aria-label={`Stations and settlements of the ${basin?.name} basin`}>
-      <defs><radialGradient id="wave-glow"><stop offset="0" stopColor="var(--accent)" stopOpacity=".95" /><stop offset="1" stopColor="var(--accent)" stopOpacity="0" /></radialGradient></defs>
       <path id={pathId} className="ex-river-bed" d={path} />
       <path className="ex-river" d={path} />
       {settlements.map((s) => {
         const [x, y] = frame.project(s.lng, s.lat);
-        return <g key={s.settlement_id} className="ex-settle"><rect x={x - 6} y={y - 6} width="12" height="12" rx="2" transform={`rotate(45 ${x} ${y})`} /><text x={x + 12} y={y + 4}>{s.name.split(" ").slice(0, 2).join(" ")}</text></g>;
+        return <g key={s.settlement_id} className="ex-settle"><rect x={x - 6} y={y - 6} width="12" height="12" transform={`rotate(45 ${x} ${y})`} /><text x={x + 12} y={y + 4}>{s.name.split(" ").slice(0, 2).join(" ")}</text></g>;
       })}
       {nodes.map((n, i) => {
         const [x, y] = pts[i];
@@ -186,20 +174,20 @@ function BasinExplorer({ basin, nodes, settlements, live, onOpenStation }) {
           <text className="ex-name" x={x} y={y + (i % 2 ? 32 : -22)} textAnchor="middle">{n.name.replace(/ (Gauge|Station|Sector)$/i, "").split(" ").slice(0, 3).join(" ")}</text>
         </g>;
       })}
-      {run > 0 && !reduced && <g key={`wave-${run}`}><circle r="22" fill="url(#wave-glow)"><animateMotion dur={`${duration}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.6 1"><mpath href={`#${pathId}`} /></animateMotion></circle><circle r="6" className="ex-wave-core"><animateMotion dur={`${duration}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.6 1"><mpath href={`#${pathId}`} /></animateMotion></circle></g>}
+      {run > 0 && !reduced && <g key={`wave-${run}`}><circle r="14" className="ex-wave-halo"><animateMotion dur={`${duration}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.6 1"><mpath href={`#${pathId}`} /></animateMotion></circle><circle r="6" className="ex-wave-core"><animateMotion dur={`${duration}s`} fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.6 1"><mpath href={`#${pathId}`} /></animateMotion></circle></g>}
     </svg>
     <div className="explorer-controls">
       <button className="btn-accent" onClick={() => setRun((v) => v + 1)}><Play size={15} /> Play flood-wave preview</button>
-      <span>The glow travels at scaled speed. Click any station for its latest reading.</span>
+      <span>Click any station for its latest reading.</span>
     </div>
   </div>;
 }
 
 export default function LandingPage({ basins = [], nodes = [], settlements = [], live = {}, onNavigate, onChooseBasin, apiDown = false }) {
   const reduced = useReducedMotion();
-  const { scrollYProgress, scrollY } = useScroll();
+  const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: .3 });
-  const pipeScale = useTransform(scrollYProgress, [0.1, 0.32], [0, 1]);
+  const pipeScale = useTransform(scrollYProgress, [0.12, 0.34], [0, 1]);
   const [activeId, setActiveId] = useState("");
   const [stepOpen, setStepOpen] = useState(null);
   const [stationOpen, setStationOpen] = useState(null);
@@ -209,61 +197,67 @@ export default function LandingPage({ basins = [], nodes = [], settlements = [],
   const openAlerts = basins.reduce((sum, b) => sum + (b.open_alerts || 0), 0);
   const navigate = (path) => onNavigate(path);
   const openBasin = (id, path = "/app/monitor") => { onChooseBasin?.(id); navigate(path); };
-  const health = apiDown ? { tone: "offline", text: "Live network unavailable · preview mode" }
+  const health = apiDown ? { tone: "offline", text: "Live network unavailable · preview" }
     : !basins.length ? { tone: "checking", text: "Connecting to the basin network" }
-    : { tone: openAlerts ? "alert" : "online", text: `${nodes.length} stations in ${basins.length} basins · ${openAlerts ? `${openAlerts} open alerts` : "all normal"}` };
+    : { tone: openAlerts ? "alert" : "online", text: `${nodes.length} stations · ${basins.length} basins · ${openAlerts ? `${openAlerts} open alerts` : "all normal"}` };
+
+  const stationPins = useMemo(() => activeNodes.map((n) => ({
+    name: n.name.replace(/ (Gauge|Station|Sector)$/i, "").split(" ").slice(0, 3).join(" "),
+    risk: live[n.node_id]?.risk_level ?? n.current_risk ?? "NORMAL"
+  })), [activeNodes, live]);
 
   const ticker = useMemo(() => nodes.map((n) => {
     const r = live[n.node_id] || n.latest_reading || {};
     return { id: n.node_id, name: n.name.replace(/ (Gauge|Station|Sector)$/i, ""), level: r.water_level_cm, risk: r.risk_level || n.current_risk || "NORMAL" };
   }), [nodes, live]);
 
-  const heroRef = useRef(null);
-  const onHeroMove = (event) => {
-    if (reduced || !heroRef.current) return;
-    const box = heroRef.current.getBoundingClientRect();
-    heroRef.current.style.setProperty("--hx", `${event.clientX - box.left}px`);
-    heroRef.current.style.setProperty("--hy", `${event.clientY - box.top}px`);
-  };
-
-  const headline = ["See", "the", "signal"];
+  const enter = (delay) => (reduced ? { initial: false } : { initial: { opacity: 0, y: 22 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: .7, ease: [0.16, 1, 0.3, 1] } });
 
   return <div className="landing-page">
     <motion.div className="scroll-bar" style={{ scaleX: progress }} aria-hidden="true" />
     <header className="landing-nav">
-      <a href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }}><Logo variant="full" /></a>
-      <nav className="landing-links" aria-label="Landing page"><a href="#how-it-works">How it works</a><a href="#network">River basins</a><a href="#features">Features</a><a href="#safety">Safety</a></nav>
+      <a href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }} aria-label={`${brand.title} home`}><Logo variant="full" /></a>
+      <nav className="landing-links" aria-label="Landing page"><a href="#how-it-works">Signal path</a><a href="#network">Basins</a><a href="#features">Features</a><a href="#safety">Safety</a></nav>
       <div className="landing-actions"><a className="landing-bulletin" href="/bulletin" onClick={(e) => { e.preventDefault(); navigate("/bulletin"); }}>Public bulletin</a><button className="landing-primary" onClick={() => navigate("/app/monitor")}>Open dashboard <ArrowRight size={15} /></button></div>
     </header>
 
     <main>
-      <section className="landing-hero" ref={heroRef} onPointerMove={onHeroMove}>
-        <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
-        <div className="hero-cursor" aria-hidden="true" />
-        <Ridges scrollY={scrollY} />
+      <section className="landing-hero">
+        <Contours />
         <div className="hero-grid">
           <div className="landing-hero-copy">
-            <motion.div className={`live-chip ${health.tone}`} initial={reduced ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6 }}><span /> {health.text}</motion.div>
-            <p className="eyebrow">NEPAL · {basins.length || "MANY"} RIVER BASINS · FREE &amp; OPEN DATA</p>
-            <h1 aria-label="See the signal before the flood.">
-              {headline.map((w, i) => <motion.span key={w} className="word" initial={reduced ? false : { y: "110%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .15 + i * .12, duration: .8, ease: [0.16, 1, 0.3, 1] }}>{w}&nbsp;</motion.span>)}
-              <br />
-              <motion.span className="word grad" initial={reduced ? false : { y: "110%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .55, duration: .9, ease: [0.16, 1, 0.3, 1] }}>before the flood.</motion.span>
+            <motion.div className={`live-chip ${health.tone}`} {...enter(0)}><span /> {health.text}</motion.div>
+            <motion.p className="eyebrow" {...enter(.05)}>{brand.title.toUpperCase()} · <span lang="ne">{brand.nameNe}</span> · NEPAL</motion.p>
+            <h1 aria-label="The river speaks before it floods.">
+              <span className="line"><motion.span initial={reduced ? false : { y: "105%" }} animate={{ y: 0 }} transition={{ delay: .12, duration: .85, ease: [0.16, 1, 0.3, 1] }}>The river</motion.span></span>
+              <span className="line"><motion.span initial={reduced ? false : { y: "105%" }} animate={{ y: 0 }} transition={{ delay: .24, duration: .85, ease: [0.16, 1, 0.3, 1] }}><em>speaks</em> before</motion.span></span>
+              <span className="line"><motion.span initial={reduced ? false : { y: "105%" }} animate={{ y: 0 }} transition={{ delay: .36, duration: .85, ease: [0.16, 1, 0.3, 1] }}>it floods.</motion.span></span>
             </h1>
-            <motion.p className="landing-lede" initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .9, duration: .7 }}>{brand.description} One system watches every basin, routes warnings downstream and tells communities where to go.</motion.p>
-            <motion.div className="landing-hero-ctas" initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.05, duration: .7 }}>
+            <motion.p className="landing-lede" {...enter(.7)}>{brand.description} One system watches every basin, works out how long a flood wave needs to reach each village, and emails the people who must move.</motion.p>
+            <motion.div className="landing-hero-ctas" {...enter(.85)}>
               <button className="btn-accent large" onClick={() => navigate("/app/monitor")}>Open dashboard <ArrowRight size={17} /></button>
               <button className="landing-secondary" onClick={() => navigate("/bulletin")}>Public bulletin <ArrowUpRight size={16} /></button>
             </motion.div>
+            <motion.dl className="hero-stats" {...enter(1)}>
+              <div><dt>Basins</dt><dd>{basins.length || "·"}</dd></div>
+              <div><dt>Stations</dt><dd>{nodes.length || "·"}</dd></div>
+              <div><dt>Alerts by</dt><dd>Email</dd></div>
+            </motion.dl>
           </div>
 
-          <motion.div className="hero-map" initial={reduced ? false : { opacity: 0, scale: .94, rotateX: 8 }} animate={{ opacity: 1, scale: 1, rotateX: 0 }} transition={{ delay: .4, duration: 1.1, ease: [0.16, 1, 0.3, 1] }}>
-            <div className="hero-map-head"><Waves size={15} /><strong>Live basin map</strong><span>real station positions · stylised border</span></div>
-            <NepalMap basins={basins} nodes={nodes} activeId={active?.basin_id} onPick={setActiveId} />
-            <div className="hero-map-foot">
-              {active ? <><span className={`state-dot ${active.open_alerts ? "alert" : "calm"}`} /><b>{active.name}</b><small>{active.region}</small><button onClick={() => openBasin(active.basin_id)}>Open <ArrowRight size={13} /></button></> : <small>{apiDown ? "Live data unavailable" : "Connecting…"}</small>}
+          <motion.figure className="plate" {...enter(.3)}>
+            <div className="plate-bar"><span>FIG. 1</span><strong>{active ? `${active.name} basin, stations along the river` : "River valley"}</strong><span>3D · drag to tilt</span></div>
+            <div className="plate-view">
+              <Suspense fallback={<div className="terrain-fallback">Loading 3D valley…</div>}>
+                <Terrain3D stations={stationPins} reduced={!!reduced} />
+              </Suspense>
+              <i className="crop tl" /><i className="crop tr" /><i className="crop bl" /><i className="crop br" />
             </div>
-          </motion.div>
+            <div className="plate-tabs" role="tablist" aria-label="Basin shown in the 3D view">
+              {basins.map((b) => <button key={b.basin_id} role="tab" aria-selected={active?.basin_id === b.basin_id} className={active?.basin_id === b.basin_id ? "on" : ""} onClick={() => setActiveId(b.basin_id)}>{b.name}</button>)}
+            </div>
+            <figcaption>Generated valley for illustration, not surveyed terrain. Pins are this basin's stations in order; the red pulse is a flood wave.</figcaption>
+          </motion.figure>
         </div>
       </section>
 
@@ -274,24 +268,25 @@ export default function LandingPage({ basins = [], nodes = [], settlements = [],
       </div>
 
       <section className="landing-section" id="how-it-works">
-        <Reveal className="section-heading"><p className="eyebrow">01 · THE SIGNAL PATH</p><h2>From a reading<br />to a <em>response.</em></h2><p>Every warning follows a visible chain. Open any step to see exactly what happens there.</p></Reveal>
+        <Reveal className="section-heading"><p className="eyebrow">01 · THE SIGNAL PATH</p><h2>From a reading to <em>a response.</em></h2><p>Every warning follows a visible chain. Open any step to see exactly what happens there.</p></Reveal>
         <div className="pipeline">
           <div className="pipe-line" aria-hidden="true"><motion.i style={{ scaleX: pipeScale }} /></div>
-          {steps.map((s, i) => <Reveal key={s.n} delay={i * .08} className="pipe-wrap"><Spotlight className="pipe-card"><button onClick={() => setStepOpen(s)} aria-label={`${s.title}: learn more`}>
+          {steps.map((s, i) => <Reveal key={s.n} delay={i * .07} className="pipe-wrap"><button className="pipe-card" onClick={() => setStepOpen(s)} aria-label={`${s.title}: learn more`}>
             <span className="pipe-n">{s.n}</span><span className="pipe-ico"><s.icon size={20} strokeWidth={1.7} /></span><h3>{s.title}</h3><p>{s.short}</p><span className="pipe-more">Details <ArrowRight size={13} /></span>
-          </button></Spotlight></Reveal>)}
+          </button></Reveal>)}
         </div>
       </section>
 
       <section className="landing-section" id="network">
-        <Reveal className="section-heading split"><div><p className="eyebrow">02 · RIVER BASINS</p><h2>{basins.length ? `${basins.length} basins.` : "Many basins."}<br /><em>One signal path.</em></h2></div><p>Pick a basin to see its stations and settlements at their real positions, then send a flood wave down the river.</p></Reveal>
+        <Reveal className="section-heading split"><div><p className="eyebrow">02 · RIVER BASINS</p><h2>{basins.length ? `${basins.length} basins,` : "Many basins,"} <em>one signal path.</em></h2></div><p>Pick a basin to see its stations and settlements at their real positions, then send a flood wave down the river.</p></Reveal>
         <Reveal className="explorer">
           <div className="explorer-tabs" role="tablist" aria-label="Basin">{basins.map((b) => <button key={b.basin_id} role="tab" aria-selected={active?.basin_id === b.basin_id} className={active?.basin_id === b.basin_id ? "on" : ""} onClick={() => setActiveId(b.basin_id)}>
             <span className={`state-dot ${b.open_alerts ? "alert" : "calm"}`} /><b>{b.name}</b><small>{b.stations} stations</small></button>)}</div>
           <div className="explorer-body">
             <AnimatePresence mode="wait">
-              {active && <motion.div key={active.basin_id} initial={reduced ? false : { opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={reduced ? undefined : { opacity: 0, x: -24 }} transition={{ duration: .35 }} className="explorer-panel">
+              {active && <motion.div key={active.basin_id} initial={reduced ? false : { opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={reduced ? undefined : { opacity: 0, x: -24 }} transition={{ duration: .3 }} className="explorer-panel">
                 <div className="explorer-info">
+                  <NepalMap basins={basins} nodes={nodes} activeId={active.basin_id} onPick={setActiveId} />
                   <p className="basin-region">{active.region}</p>
                   <h3>{active.name}{active.name_ne ? <span lang="ne"> · {active.name_ne}</span> : null}</h3>
                   <p>{active.description}</p>
@@ -307,21 +302,21 @@ export default function LandingPage({ basins = [], nodes = [], settlements = [],
       </section>
 
       <section className="landing-section numbers-section">
-        {[[basins.length, "", "river basins"], [nodes.length, "", "stations listening"], [settlements.length, "", "settlements covered"], [5, "s", "reading interval"]].map(([v, suffix, label], i) => <Reveal key={label} delay={i * .08} className="number-item"><strong><CountUp value={v} suffix={suffix} /></strong><span>{label}</span></Reveal>)}
+        {[[basins.length, "", "river basins"], [nodes.length, "", "stations listening"], [settlements.length, "", "settlements covered"], [5, "s", "reading interval"]].map(([v, suffix, label], i) => <Reveal key={label} delay={i * .07} className="number-item"><strong><CountUp value={v} suffix={suffix} /></strong><span>{label}</span></Reveal>)}
       </section>
 
       <section className="landing-section" id="features">
-        <Reveal className="section-heading"><p className="eyebrow">03 · THE OPERATING MODEL</p><h2>Decisions with<br /><em>a visible reason.</em></h2></Reveal>
-        <div className="feature-grid">{features.map(([title, copy, Icon], i) => <Reveal key={title} delay={(i % 3) * .08}><Spotlight className="feature-card"><span className="feature-ico"><Icon size={20} strokeWidth={1.7} /></span><h3>{title}</h3><p>{copy}</p></Spotlight></Reveal>)}</div>
+        <Reveal className="section-heading"><p className="eyebrow">03 · THE OPERATING MODEL</p><h2>Decisions with <em>a visible reason.</em></h2></Reveal>
+        <div className="feature-grid">{features.map(([title, copy, Icon], i) => <Reveal key={title} delay={(i % 3) * .07}><article className="feature-card"><span className="feature-ico"><Icon size={20} strokeWidth={1.7} /></span><h3>{title}</h3><p>{copy}</p></article></Reveal>)}</div>
       </section>
 
       <section className="landing-section safety-section" id="safety">
-        <Reveal className="safety-copy"><p className="eyebrow">04 · WHEN A WARNING ARRIVES</p><h2>Know the next<br /><em>safe step.</em></h2><p>Move to higher ground when instructed. Take medicines, documents and water. Follow local responders and check the public bulletin for current settlement guidance.</p><button className="btn-accent" onClick={() => navigate("/bulletin")}>Open safety bulletin <ArrowRight size={15} /></button></Reveal>
-        <div className="safety-steps">{["Hear the warning", "Move to the evacuation point", "Stay until all-clear"].map((t, i) => <Reveal key={t} delay={i * .12}><div className="safety-step"><span>{i + 1}</span><b>{t}</b></div></Reveal>)}</div>
+        <Reveal className="safety-copy"><p className="eyebrow">04 · WHEN A WARNING ARRIVES</p><h2>Know the next <em>safe step.</em></h2><p>Move to higher ground when instructed. Take medicines, documents and water. Follow local responders and check the public bulletin for current settlement guidance.</p><button className="btn-accent" onClick={() => navigate("/bulletin")}>Open safety bulletin <ArrowRight size={15} /></button></Reveal>
+        <div className="safety-steps">{["Read the warning", "Move to the evacuation point", "Stay until all-clear"].map((t, i) => <Reveal key={t} delay={i * .1}><div className="safety-step"><span>{i + 1}</span><b>{t}</b></div></Reveal>)}</div>
       </section>
     </main>
 
-    <footer className="landing-footer"><Logo variant="full" /><div><span>{brand.title} · River early warning for Nepal</span><small>React · FastAPI · MQTT · Leaflet · Academic final-year project</small></div><div className="landing-credit"><strong>Credits</strong><span>{credits.team} · {credits.institution}</span><small>{credits.contact}</small></div><button onClick={() => navigate("/app/monitor")}>Operations dashboard <ArrowRight size={14} /></button></footer>
+    <footer className="landing-footer"><Logo variant="full" /><div><span>{brand.title} · River early warning for Nepal</span><small>React · FastAPI · MQTT · Leaflet · three.js · Academic final-year project</small></div><div className="landing-credit"><strong>Credits</strong><span>{credits.team} · {credits.institution}</span><small>{credits.contact}</small></div><button onClick={() => navigate("/app/monitor")}>Operations dashboard <ArrowRight size={14} /></button></footer>
 
     {stepOpen && <Modal title={`${stepOpen.n} · ${stepOpen.title}`} description={stepOpen.short} onClose={() => setStepOpen(null)}>
       <div className="modal-body"><p>{stepOpen.long}</p><ul className="modal-list">{stepOpen.points.map((p) => <li key={p}>{p}</li>)}</ul></div>

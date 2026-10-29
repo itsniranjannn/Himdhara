@@ -42,7 +42,7 @@ def telemetry_base(topic: str) -> str:
 
 
 class Settings(BaseModel):
-    PROJECT_NAME: str = "Flood & Landslide Early Warning System"
+    PROJECT_NAME: str = "Himdhara: River Early Warning for Nepal"
     VERSION: str = "2.0.0"
 
     # MQTT Broker Configuration (the public HiveMQ broker is open to everyone:
@@ -68,6 +68,8 @@ class Settings(BaseModel):
     # Sensor health
     STALE_AFTER_SECONDS: int = int(os.getenv("STALE_AFTER_SECONDS", "60"))
 
+    APP_NAME: str = os.getenv("APP_NAME", "Himdhara")
+
     # Security
     JWT_SECRET: str = _jwt_secret()
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
@@ -76,19 +78,14 @@ class Settings(BaseModel):
     ALLOWED_ORIGINS: list = _csv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5180,http://127.0.0.1:5180")
     DEMO_CONTROLS_ENABLED: bool = os.getenv("DEMO_CONTROLS_ENABLED", "true").lower() == "true"
 
-    # Notifications: 'simulated' (log only), 'sparrow' (Sparrow SMS, Nepal) for SMS, 'smtp' for email
-    SMS_PROVIDER: str = os.getenv("SMS_PROVIDER", "simulated")
-    SPARROW_TOKEN: str = os.getenv("SPARROW_TOKEN", "")
-    SPARROW_FROM: str = os.getenv("SPARROW_FROM", "")
-    # Telegram is free: create a bot with @BotFather and a public channel residents can join.
-    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+    # Alerts go out by email only (free): 'simulated' logs without sending, 'smtp' sends through any SMTP server.
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "simulated")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM: str = os.getenv("SMTP_FROM", "")
+    SMTP_STARTTLS: bool = os.getenv("SMTP_STARTTLS", "true").lower() == "true"
 
 
 settings = Settings()

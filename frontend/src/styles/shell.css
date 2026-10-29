@@ -14,7 +14,8 @@
 .appbar-brand { display: flex; flex: none; text-decoration: none; }
 .logo-lockup { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-1); }
 .logo-lockup .logo-mark { width: 34px; height: 34px; flex: none; color: var(--brand); }
-.logo-lockup strong { display: block; font: 800 16px/1 var(--font-display); letter-spacing: .07em; }
+.logo-lockup strong { display: block; font: 800 21px/1 var(--font-display); letter-spacing: -.01em; }
+.logo-beacon { fill: var(--accent); }
 .logo-lockup small { display: block; margin-top: 4px; color: var(--text-3); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; }
 
 .appbar-nav { display: flex; align-items: center; gap: 2px; min-width: 0; }

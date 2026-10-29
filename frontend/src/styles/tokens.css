@@ -1,58 +1,59 @@
-/* Design tokens.
-   Palette "Himal": cool slate neutrals, cobalt brand, and a four-step risk scale.
-   Typography: Plus Jakarta Sans (display) · Inter (UI/body) · JetBrains Mono (numbers/labels) · Noto Sans Devanagari (Nepali).
-   All fonts are free and self-hosted through @fontsource, so the app needs no external font service.
-   Contrast ratios for every text/background pair are asserted in frontend/scripts/check-contrast.mjs. */
-@import "@fontsource/plus-jakarta-sans/600.css";
-@import "@fontsource/plus-jakarta-sans/700.css";
-@import "@fontsource/plus-jakarta-sans/800.css";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/jetbrains-mono/400.css";
-@import "@fontsource/jetbrains-mono/600.css";
+/* Design tokens: "Survey Sheet".
+   A field-instrument look: warm survey paper, ink-blue rivers, a vermilion accent, hairline rules and
+   hard-offset shadows. Light "paper" is the default; dark "night survey" is data-theme="dark".
+   Type: Fraunces (display serif) · IBM Plex Sans (UI) · IBM Plex Mono (readings and labels) · Noto Sans Devanagari (Nepali).
+   Every font is free and self-hosted through @fontsource. WCAG contrast for each text/background pair is asserted
+   in frontend/scripts/check-contrast.mjs. */
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/800.css";
+@import "@fontsource/fraunces/600-italic.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/600.css";
 @import "@fontsource/noto-sans-devanagari/400.css";
 @import "@fontsource/noto-sans-devanagari/500.css";
 @import "@fontsource/noto-sans-devanagari/600.css";
 @import "@fontsource/noto-sans-devanagari/700.css";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* surfaces: 0 page · 1 panels/sidebar · 2 raised or hover · 3 selected/pressed */
-  --surface-0: #04141b;
-  --surface-1: #0a2029;
-  --surface-2: #0f2c38;
-  --surface-3: #163c4c;
-  --border: #1d4455;
-  --border-strong: #2f6479;
+  /* surfaces: 0 page · 1 panels · 2 raised or hover · 3 selected/pressed */
+  --surface-0: #ece4d2;
+  --surface-1: #f8f3e6;
+  --surface-2: #f1ead9;
+  --surface-3: #e2d8bf;
+  --border: #cbbf9f;
+  --border-strong: #2b3a42;
 
-  /* text */
-  --text-1: #ebf8f9;
-  --text-2: #b4d0d6;
-  --text-3: #87abb4;
+  /* text (ink) */
+  --text-1: #15222a;
+  --text-2: #374851;
+  --text-3: #4c5c64;
 
-  /* brand: glacier-melt cyan, with a marigold accent for highlights and calls to action */
-  --brand: #3fc8ef;
-  --brand-hover: #7ddcf7;
-  --brand-muted: #1d7fa0;
-  --brand-soft: rgba(63, 200, 239, .14);
-  --on-brand: #04141b;
-  --accent: #ffb23e;
-  --accent-soft: rgba(255, 178, 62, .15);
-  --on-accent: #1d1200;
+  /* brand: river-ink indigo, with a vermilion accent for highlights and calls to action */
+  --brand: #1b4f7b;
+  --brand-hover: #123b5d;
+  --brand-muted: #8ca9c2;
+  --brand-soft: rgba(27, 79, 123, .09);
+  --on-brand: #f8f3e6;
+  --accent: #b82e14;
+  --accent-soft: rgba(184, 46, 20, .1);
+  --on-accent: #fff8ef;
 
   /* risk scale: never convey risk by colour alone, always pair with a label */
-  --normal: #4fdc8c;
-  --watch: #f0c23a;
-  --warning: #ff9650;
-  --critical: #ff6b7d;
-  --stale: #93adb6;
+  --normal: #1c6b3d;
+  --watch: #85600a;
+  --warning: #a64709;
+  --critical: #b3122a;
+  --stale: #52626a;
 
   /* type */
-  --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", system-ui, sans-serif;
-  --font-body: "Inter", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-display: "Fraunces", "Noto Sans Devanagari", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --text-xs: 12.5px;
   --text-sm: 14.5px;
   --text-md: 16px;
@@ -60,7 +61,7 @@
   --text-xl: 30px;
   --text-2xl: 42px;
   --text-3xl: 64px;
-  --leading-tight: 1.15;
+  --leading-tight: 1.1;
   --leading-body: 1.55;
 
   /* space, 4px grid */
@@ -73,13 +74,13 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* shape and depth */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --shadow-panel: 0 1px 2px rgba(2, 6, 18, .3), 0 10px 30px rgba(2, 6, 18, .22);
-  --shadow-float: 0 24px 60px rgba(2, 6, 18, .55);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 45%, transparent);
+  /* shape and depth: square-ish corners, hard offset shadows like a printed sheet */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --shadow-panel: 0 1px 0 rgba(21, 34, 42, .1), 3px 3px 0 rgba(21, 34, 42, .09);
+  --shadow-float: 6px 6px 0 rgba(21, 34, 42, .2);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
 
   /* motion */
   --ease-out: cubic-bezier(.16, 1, .3, 1);
@@ -97,34 +98,34 @@
   --z-modal: 1000;
 }
 
-[data-theme="light"] {
-  color-scheme: light;
-  --surface-0: #ecf5f7;
-  --surface-1: #ffffff;
-  --surface-2: #f2f8fa;
-  --surface-3: #dcebef;
-  --border: #c6dde3;
-  --border-strong: #93b6c1;
+[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #0c1418;
+  --surface-1: #121d23;
+  --surface-2: #19272f;
+  --surface-3: #22343e;
+  --border: #2a3e49;
+  --border-strong: #52707f;
 
-  --text-1: #07202a;
-  --text-2: #29454f;
-  --text-3: #476570;
+  --text-1: #f0ead9;
+  --text-2: #c6ccc6;
+  --text-3: #95a4a6;
 
-  --brand: #0a6a8c;
-  --brand-hover: #07566f;
-  --brand-muted: #87c3d6;
-  --brand-soft: rgba(10, 106, 140, .09);
-  --on-brand: #ffffff;
-  --accent: #9a5200;
-  --accent-soft: rgba(154, 82, 0, .12);
-  --on-accent: #ffffff;
+  --brand: #82b8e3;
+  --brand-hover: #acd2ee;
+  --brand-muted: #2f6286;
+  --brand-soft: rgba(130, 184, 227, .13);
+  --on-brand: #0c1418;
+  --accent: #ff7b5a;
+  --accent-soft: rgba(255, 123, 90, .14);
+  --on-accent: #220b03;
 
-  --normal: #157a47;
-  --watch: #8a5d00;
-  --warning: #a64709;
-  --critical: #c4122f;
-  --stale: #5b6b84;
+  --normal: #5fd48f;
+  --watch: #f0c23a;
+  --warning: #ff9650;
+  --critical: #ff6b7d;
+  --stale: #9aa9ac;
 
-  --shadow-panel: 0 1px 2px rgba(20, 40, 80, .06), 0 4px 14px rgba(20, 40, 80, .05);
-  --shadow-float: 0 24px 60px rgba(20, 40, 80, .22);
+  --shadow-panel: 0 1px 0 rgba(0, 0, 0, .4), 3px 3px 0 rgba(0, 0, 0, .35);
+  --shadow-float: 6px 6px 0 rgba(0, 0, 0, .5);
 }

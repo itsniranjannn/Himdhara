@@ -1,7 +1,7 @@
 const HOST = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
 export const API_BASE = import.meta.env.VITE_API_BASE || `http://${HOST}:8000/api`;
 export const WS_URL = import.meta.env.VITE_WS_URL || `ws://${HOST}:8000/ws/stream`;
-const SESSION_KEY = "trishuli-session";
+const SESSION_KEY = "himdhara-session";
 
 function authHeader() {
   try {
@@ -34,7 +34,7 @@ async function request(path, { method = "GET", body, raw = false } = {}) {
     // A rejected token means the session ended; an anonymous 401 just means sign-in is needed.
     if (response.status === 401 && headers.Authorization) {
       localStorage.removeItem(SESSION_KEY);
-      window.dispatchEvent(new CustomEvent("trishuli-session-expired"));
+      window.dispatchEvent(new CustomEvent("himdhara-session-expired"));
     }
     throw Object.assign(new Error(describeError(payload, response.status)), { status: response.status });
   }
@@ -77,7 +77,7 @@ export const fetchContacts = () => request("/contacts");
 export const addContact = (contact) => request("/contacts", { method: "POST", body: contact });
 export const deleteContact = (contactId) => request(`/contacts/${contactId}`, { method: "DELETE" });
 export const fetchNotifications = () => request("/notifications/log?limit=100");
-export const subscribePublic = (settlementId, phone, language) => request("/public/subscribe", { method: "POST", body: { settlement_id: settlementId, phone, language } });
+export const subscribePublic = (settlementId, email, language) => request("/public/subscribe", { method: "POST", body: { settlement_id: settlementId, email, language } });
 export const triggerSpike = (nodeId, waterSurge = 145) => request("/spike/inject", { method: "POST", body: { node_id: nodeId, water_level_surge_cm: waterSurge, rainfall_surge_mm: 80, soil_moisture_surge_pct: 40, duration_seconds: 45 } });
 export const resetSimulation = () => request("/simulation/reset", { method: "POST" });
 export const login = (username, password) => request("/auth/login", { method: "POST", body: { username, password } });

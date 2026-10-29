@@ -17,8 +17,8 @@ function block(selector) {
 function tokens(body) {
   return Object.fromEntries([...body.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [m[1], m[2]]));
 }
-const dark = tokens(block(":root"));
-const light = { ...dark, ...tokens(block('[data-theme="light"]')) };
+const light = tokens(block(":root"));
+const dark = { ...light, ...tokens(block('[data-theme="dark"]')) };
 
 const channel = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const luminance = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.2126 * channel(n >> 16) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255); };
@@ -40,7 +40,7 @@ const PAIRS = [
 ];
 
 let failures = 0;
-for (const [name, theme] of [["dark", dark], ["light", light]]) {
+for (const [name, theme] of [["light (paper)", light], ["dark (night survey)", dark]]) {
   console.log(`\n${name.toUpperCase()} THEME`);
   for (const [fg, bg, min, use] of PAIRS) {
     const value = ratio(theme[fg], theme[bg]);

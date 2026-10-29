@@ -1,4 +1,4 @@
-# Trishuli Flood & Landslide Early Warning System
+# Himdhara: River Early Warning for Nepal
 
 **8th Semester Engineering Final Year Project**  
 **Study area:** Trishuli and Bhotekoshi River Basin, Bagmati Province, Nepal
@@ -46,8 +46,8 @@ The system is designed for a viva/demo deployment, but the boundaries between th
 - Short-horizon trend forecast per station (minutes until watch/warning/critical at the current rate, guidance only).
 - Operators acknowledge and resolve alerts with notes and a full history; alerts also auto-resolve on recovery.
 - Analytics page: water-level history over 1 h to 7 days, per-station statistics, risk-band time share, CSV export.
-- Alert delivery by SMS (Sparrow SMS, Nepal) and email (SMTP) to registered contacts in English or Nepali, with a persistent delivery log. Defaults to simulated delivery.
-- Public bulletin in English and Nepali, with resident self-registration for SMS alerts.
+- Alert delivery by email (SMTP, free) to registered contacts in English or Nepali, with a persistent delivery log. Defaults to simulated delivery. There is no SMS channel because SMS gateways are paid.
+- Public bulletin in English and Nepali, with resident self-registration for email alerts.
 - Telemetry validation (unknown stations, out-of-range or non-numeric values are rejected) and a private MQTT topic prefix.
 - Includes a modal Demo workflow for spike injection and simulator reset.
 - Provides a public bulletin with station conditions, general safety guidance, and settlement evacuation points.
@@ -89,14 +89,14 @@ Everything runs on free tools and services, with no API key or paid plan require
 | MQTT broker | HiveMQ public broker, protected by a private random topic prefix |
 | Map tiles | OpenStreetMap (follow its tile usage policy; for heavy traffic use a tile host or your own server) |
 | Rain forecast | Open-Meteo (free, no key, CC BY 4.0, attribution shown in the UI), cached 30 minutes |
-| Alerts to the public | Telegram channel via a free bot (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), plus email through any SMTP server such as a free Gmail app password |
-| Fonts | Plus Jakarta Sans, Inter, JetBrains Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
+| Alerts to the public | Email through any SMTP server, for example a free Gmail app password (`EMAIL_PROVIDER=smtp`, `SMTP_*`) |
+| Fonts | Fraunces, IBM Plex Sans, IBM Plex Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
 
-SMS through Sparrow SMS is supported but is a paid service. It is off by default.
+SMS and Telegram are intentionally not used: email is the only alert channel.
 
 ## Design system
 
-Tokens live in `frontend/src/styles/tokens.css` (palette "Himal": cool slate neutrals, cobalt brand, a four-step risk scale with Nepal's crimson reserved for critical). Typography is Plus Jakarta Sans for headings, Inter for the interface, JetBrains Mono for numbers, and Noto Sans Devanagari for Nepali. Risk is never shown by colour alone: every state also has a text label. `npm run check:contrast` verifies WCAG AA contrast for every text/background pair in both themes. The product name lives in `frontend/src/config/brand.js`.
+Tokens live in `frontend/src/styles/tokens.css` (palette "Survey Sheet": warm survey paper, ink-blue rivers, a vermilion accent, hairline rules and hard-offset shadows; dark mode is "night survey"). Typography is Fraunces for display, IBM Plex Sans for the interface, IBM Plex Mono for readings and labels, and Noto Sans Devanagari for Nepali. All fonts are free and self-hosted. The landing page adds a procedural 3D valley (three.js) with a flood wave moving down the river.
 ## Architecture
 
 ```text
@@ -168,7 +168,7 @@ thresholds, directed edges, settlement metadata, and travel times.
 │   │   ├── anomaly_engine.py          # EMA, HSI, thresholds, classification
 │   │   ├── graph_engine.py            # Directed graph and Dijkstra routing
 │   │   ├── dispatcher.py              # WebSocket fan-out and notification log
-│   │   ├── notifier.py                # Simulated SMS/email notification layer
+│   │   ├── notifier.py                # Email notification layer (SMTP, delivery log)
 │   │   └── seed_data.py               # Station and settlement initialization
 │   └── tests/                         # Backend unit and integration tests
 ├── frontend/
@@ -222,7 +222,7 @@ The ingestion worker:
 
 ### Dispatcher and notifier
 
-The dispatcher maintains active WebSocket connections and broadcasts JSON events. The notifier keeps a simulated notification log for SMS/email integration points; the default providers are deliberately non-delivery simulation providers.
+The dispatcher maintains active WebSocket connections and broadcasts JSON events. The notifier emails registered contacts through SMTP and keeps a delivery log; the default `simulated` provider logs without sending.
 
 ## Telemetry and event contracts
 
@@ -531,12 +531,10 @@ Copy `.env.example` to `.env` at the repository root or configure environment va
 | `STALE_AFTER_SECONDS` | `60` | Silence before a station is shown OFFLINE |
 | `ALLOWED_ORIGINS` | localhost dev ports | Comma-separated browser origins allowed by CORS |
 | `DEMO_CONTROLS_ENABLED` | `true` | Enables the spike / reset demo endpoints |
-| `SMS_PROVIDER`, `SPARROW_TOKEN`, `SPARROW_FROM` | `simulated` | Set provider to `sparrow` to send real SMS |
-| `EMAIL_PROVIDER`, `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM` | `simulated` | Set provider to `smtp` to send real email |
+| `EMAIL_PROVIDER`, `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM/STARTTLS` | `simulated` | Set provider to `smtp` to send real email |
 | `JWT_EXPIRE_MINUTES` | `480` | Token lifetime |
 | `DEFAULT_OPERATOR_USERNAME` | `operator` | Seed operator username |
 | `DEFAULT_OPERATOR_PASSWORD` | empty | Operator password. Empty = a random one-time password is printed on first start |
-| `SMS_PROVIDER` | `simulated` | Notification provider mode |
 | `EMAIL_PROVIDER` | `simulated` | Notification provider mode |
 
 The frontend development client currently targets `http://127.0.0.1:8000/api` and `ws://127.0.0.1:8000/ws/stream`. Change these service URLs in `frontend/src/services/api.js` and the WebSocket hook when deploying behind a different origin. Local/demo operator authentication is disabled so the Demo control can be used directly; the login endpoint remains only as a backwards-compatible API surface.
@@ -638,38 +636,30 @@ The dashboard and API require an operator JWT for spike and reset operations. If
 
 ## Design system and motion
 
-The frontend design system is centralized in `frontend/src/index.css`.
+The frontend design system is centralized in `frontend/src/styles/tokens.css`.
 
 ### Typography
 
-- `Space Grotesk` weights 500, 600, and 700 for headings and navigation.
-- `DM Sans` weights 400, 500, and 600 for interface text.
-- `JetBrains Mono` weights 400 and 600 for numbers, IDs, metrics, and timestamps.
+- `Fraunces` (serif) weights 600 and 800 for headings and numbers.
+- `IBM Plex Sans` weights 400, 500 and 600 for interface text.
+- `IBM Plex Mono` weights 400 and 600 for readings, IDs and labels.
+- `Noto Sans Devanagari` for Nepali.
 - Numeric values use tabular numerals.
 
 ### Palette
 
-```css
---surface-0:#08141b
---surface-1:#0d2028
---surface-2:#122b35
---surface-3:#183743
---border:#2a4a55
---text-1:#edf7f6
---text-2:#b6c8ca
---text-3:#7e999e
---brand:#62d6d0
---brand-hover:#8be6df
---brand-muted:#2f7779
---normal:#42c98a
---watch:#d8b34b
---warning:#e68a52
---critical:#ed6b72
---stale:#9aa8ae
-```
+Light "paper" is the default and dark "night survey" is `data-theme="dark"`. Both are checked against WCAG AA by `npm run check:contrast`.
+
+| Token | Paper | Night |
+|---|---|---|
+| `--surface-0` / `--surface-1` | `#ece4d2` / `#f8f3e6` | `#0c1418` / `#121d23` |
+| `--text-1` | `#15222a` | `#f0ead9` |
+| `--brand` (river ink) | `#1b4f7b` | `#82b8e3` |
+| `--accent` (vermilion) | `#b82e14` | `#ff7b5a` |
+| `--normal` / `--watch` / `--warning` / `--critical` | `#1c6b3d` / `#85600a` / `#a64709` / `#b3122a` | `#5fd48f` / `#f0c23a` / `#ff9650` / `#ff6b7d` |
 
 Risk colors are restricted to a status dot, adjacent label, and 2px left-edge accent. They are not used as full card fills or pill badges.
-The interface also provides a persisted light theme and follows the system preference when no choice has been saved.
+The interface opens in paper and remembers the reader's choice of night survey.
 
 ### Layout and interaction rules
 
@@ -799,7 +789,7 @@ This repository is configured for local/demo operation. Before production use:
 - Restrict CORS to the deployed dashboard origin.
 - Serve the API and dashboard over HTTPS/WSS.
 - Put the API behind a reverse proxy with request limits and structured logs.
-- Replace simulated SMS/email providers with audited delivery integrations.
+- Replace the simulated email provider with an audited, rate-limited delivery service.
 - Add database indexes or constraints for open-alert pair uniqueness if concurrent workers are introduced.
 - Add a durable job/queue strategy if alert notifications must survive process restarts.
 - Monitor MQTT connection health, WebSocket clients, ingestion latency, database growth, and alert transitions.
@@ -809,3 +799,6 @@ This repository is configured for local/demo operation. Before production use:
 ## License and academic use
 
 This is an academic final-year project implementation for demonstrating distributed telemetry ingestion, explainable hydrological risk analysis, graph routing, and live operator UX. Review dependencies and external broker terms before redistribution or deployment.
+
+## Live email demo
+`python backend/tests/demo_email_live.py` starts a throw-away SMTP receiver, registers an English and a Nepali contact for every settlement, injects a spike in every basin and checks that each alerted settlement's contacts actually received the email, and nobody else did. Set `EMAIL_PROVIDER=smtp`, `SMTP_HOST=127.0.0.1`, `SMTP_PORT=2526`, `SMTP_STARTTLS=false` and `SMTP_FROM=alerts@himdhara.local` in `.env` first (it needs `pip install aiosmtpd`).

@@ -60,7 +60,7 @@ function Contacts({ settlements, canEdit, health }) {
     setBusy(true);
     setError("");
     try {
-      await addContact({ settlement_id: data.get("settlement_id"), name: data.get("name"), phone: data.get("phone") || null, email: data.get("email") || null, language: data.get("language") });
+      await addContact({ settlement_id: data.get("settlement_id"), name: data.get("name"), email: data.get("email"), language: data.get("language") });
       form.reset();
       await load();
     } catch (failure) { setError(failure.message); } finally { setBusy(false); }
@@ -70,18 +70,17 @@ function Contacts({ settlements, canEdit, health }) {
   }
   if (!canEdit) return <p className="muted">Alert contacts are visible to operators only.</p>;
   return <>
-    <p className="muted small">Delivery: SMS via <b>{health?.sms_provider || "—"}</b>, email via <b>{health?.email_provider || "—"}</b>. {health?.sms_provider === "simulated" && "Simulated means messages are logged but not actually sent; set SMS_PROVIDER=sparrow in .env to send real SMS."}</p>
+    <p className="muted small">Alerts are sent by email via <b>{health?.email_provider || "—"}</b>. {health?.email_provider === "simulated" && "Simulated means messages are logged but not actually sent; set EMAIL_PROVIDER=smtp and the SMTP_* values in .env to send real email."}</p>
     <form className="contact-form" onSubmit={add}>
       <Field label="Settlement"><select name="settlement_id" required>{settlements.map((item) => <option key={item.settlement_id} value={item.settlement_id}>{item.name}</option>)}</select></Field>
       <Field label="Name"><input name="name" required maxLength={100} placeholder="Ward office" /></Field>
-      <Field label="Mobile"><input name="phone" inputMode="tel" placeholder="98XXXXXXXX" /></Field>
-      <Field label="Email"><input name="email" type="email" placeholder="optional" /></Field>
+      <Field label="Email"><input name="email" type="email" required placeholder="name@example.com" /></Field>
       <Field label="Language"><select name="language"><option value="en">English</option><option value="ne">नेपाली</option></select></Field>
       <button className="demo-submit" disabled={busy}>Add contact</button>
     </form>
     {error && <p className="form-error">{error}</p>}
-    {contacts === null ? <Loading /> : contacts.length ? <div className="table-scroll"><table className="audit-table"><thead><tr><th>Settlement</th><th>Name</th><th>Mobile</th><th>Email</th><th>Lang</th><th>Source</th><th /></tr></thead><tbody>
-      {contacts.map((contact) => <tr key={contact.id}><td>{names[contact.settlement_id] || contact.settlement_id}</td><td>{contact.name}</td><td>{contact.phone || "—"}</td><td>{contact.email || "—"}</td><td>{contact.language}</td><td>{contact.source}</td><td><button className="row-menu" aria-label={`Remove ${contact.name}`} onClick={() => remove(contact.id)}><Trash2 size={14} /></button></td></tr>)}
+    {contacts === null ? <Loading /> : contacts.length ? <div className="table-scroll"><table className="audit-table"><thead><tr><th>Settlement</th><th>Name</th><th>Email</th><th>Lang</th><th>Source</th><th /></tr></thead><tbody>
+      {contacts.map((contact) => <tr key={contact.id}><td>{names[contact.settlement_id] || contact.settlement_id}</td><td>{contact.name}</td><td>{contact.email || "—"}</td><td>{contact.language}</td><td>{contact.source}</td><td><button className="row-menu" aria-label={`Remove ${contact.name}`} onClick={() => remove(contact.id)}><Trash2 size={14} /></button></td></tr>)}
     </tbody></table></div> : <EmptyState>No contacts yet. Residents can also register from the public bulletin.</EmptyState>}
   </>;
 }
@@ -103,7 +102,7 @@ export default function ConfigurationPage({ nodes, settlements, setSettlements, 
         {settlements.length ? settlements.map((settlement) => <SettlementForm key={settlement.settlement_id + settlement.updated_at} settlement={settlement} canEdit={canEdit} onSaved={(updated) => setSettlements((current) => current.map((item) => item.settlement_id === updated.settlement_id ? updated : item))} />) : <EmptyState>No settlements loaded.</EmptyState>}
       </section>
     </div>
-    <section className="panel config-form wide"><div className="panel-title-row"><h3>Alert contacts</h3><span>SMS and email recipients</span></div>
+    <section className="panel config-form wide"><div className="panel-title-row"><h3>Alert contacts</h3><span>Email recipients</span></div>
       <Contacts settlements={settlements} canEdit={canEdit} health={health} />
     </section>
   </div>;

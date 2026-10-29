@@ -33,7 +33,7 @@ from .topology import basin_meta, load_basins
 from .weather import basin_outlook
 
 OPEN_STATUSES = ["ACTIVE", "ACKNOWLEDGED"]
-NEPAL_MOBILE = re.compile(r"^(?:\+?977)?(9[78]\d{8})$")
+EMAIL_ADDRESS = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")
 _main_loop: Optional[asyncio.AbstractEventLoop] = None
 
 
@@ -155,10 +155,8 @@ def health_check():
         "rejected_messages": mqtt_service.rejected_messages,
         "active_clients": len(dispatcher.active_connections),
         "basins": len(_basins()),
-        "telegram_enabled": bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID),
         "demo_controls_enabled": settings.DEMO_CONTROLS_ENABLED,
         "stale_after_seconds": settings.STALE_AFTER_SECONDS,
-        "sms_provider": settings.SMS_PROVIDER,
         "email_provider": settings.EMAIL_PROVIDER,
     }
 
@@ -451,13 +449,26 @@ def update_thresholds(node_id: str, thresholds: ThresholdUpdate, db: Session = D
     return {"node_id": node_id, "thresholds": values}
 
 
+def _settlement_positions() -> dict:
+    return {s["settlement_id"]: s for b in _basins() for s in b["settlements"]}
+
+
+def _settlement_out(settlement: SettlementModel, positions: Optional[dict] = None) -> dict:
+    """A settlement row plus its map position, which lives in the basin file rather than the database."""
+    position = (positions if positions is not None else _settlement_positions()).get(settlement.settlement_id, {})
+    return {"id": settlement.id, "settlement_id": settlement.settlement_id, "basin_id": settlement.basin_id, "name": settlement.name,
+            "evacuation_zone": settlement.evacuation_zone, "population": settlement.population,
+            "updated_at": settlement.updated_at, "lat": position.get("lat"), "lng": position.get("lng")}
+
+
 @app.get("/api/settlements")
 def get_settlements(basin: Optional[str] = None, db: Session = Depends(get_db)):
     """Settlement metadata for the dashboard and public bulletin."""
     query = db.query(SettlementModel)
     if basin:
         query = query.filter(SettlementModel.basin_id == basin)
-    return query.order_by(SettlementModel.name.asc()).all()
+    positions = _settlement_positions()
+    return [_settlement_out(s, positions) for s in query.order_by(SettlementModel.name.asc()).all()]
 
 
 @app.put("/api/settlements/{settlement_id}")
@@ -474,7 +485,7 @@ def update_settlement(settlement_id: str, update: SettlementUpdate, db: Session 
     db.refresh(settlement)
     if settlement_id in graph_engine.settlements_info:
         graph_engine.settlements_info[settlement_id].update(changes)
-    return settlement
+    return _settlement_out(settlement)
 
 
 # --- Incidents ---
@@ -498,11 +509,11 @@ def export_incidents(db: Session = Depends(get_db), user: UserModel = Depends(cu
 
 
 # --- Contacts, public subscription, notification log ---
-def _normalize_phone(raw: str) -> str:
-    match = NEPAL_MOBILE.match(re.sub(r"[\s-]", "", raw or ""))
-    if not match:
-        raise HTTPException(422, "Enter a valid Nepal mobile number (e.g. 98XXXXXXXX)")
-    return f"+977{match.group(1)}"
+def _normalize_email(raw: str) -> str:
+    address = (raw or "").strip().lower()
+    if not EMAIL_ADDRESS.match(address):
+        raise HTTPException(422, "Enter a valid email address (e.g. name@example.com)")
+    return address
 
 
 def _settlement_or_404(db: Session, settlement_id: str) -> SettlementModel:
@@ -520,12 +531,8 @@ def list_contacts(db: Session = Depends(get_db), user: UserModel = Depends(requi
 @app.post("/api/contacts", status_code=201)
 def add_contact(request: ContactCreate, db: Session = Depends(get_db), user: UserModel = Depends(require_operator)):
     _settlement_or_404(db, request.settlement_id)
-    if not request.phone and not request.email:
-        raise HTTPException(422, "Provide a phone number or an email address")
     contact = ContactModel(settlement_id=request.settlement_id, name=request.name.strip(),
-                           phone=_normalize_phone(request.phone) if request.phone else None,
-                           email=request.email.strip() if request.email else None,
-                           language=request.language, source="operator")
+                           email=_normalize_email(request.email), language=request.language, source="operator")
     db.add(contact)
     db.commit()
     db.refresh(contact)
@@ -544,15 +551,15 @@ def delete_contact(contact_id: int, db: Session = Depends(get_db), user: UserMod
 
 @app.post("/api/public/subscribe", status_code=201)
 def public_subscribe(request: PublicSubscribe, http: Request, db: Session = Depends(get_db)):
-    """Residents register a mobile number for SMS alerts for their settlement (no account needed)."""
+    """Residents register an email address for alerts for their settlement (no account needed)."""
     subscribe_limiter.check(client_key(http))
     _settlement_or_404(db, request.settlement_id)
-    phone = _normalize_phone(request.phone)
-    existing = db.query(ContactModel).filter(ContactModel.settlement_id == request.settlement_id, ContactModel.phone == phone).first()
+    email = _normalize_email(request.email)
+    existing = db.query(ContactModel).filter(ContactModel.settlement_id == request.settlement_id, ContactModel.email == email).first()
     if existing:
         existing.active, existing.language = True, request.language
     else:
-        db.add(ContactModel(settlement_id=request.settlement_id, name="Resident", phone=phone,
+        db.add(ContactModel(settlement_id=request.settlement_id, name="Resident", email=email,
                             language=request.language, source="public"))
     db.commit()
     return {"status": "subscribed", "settlement_id": request.settlement_id}

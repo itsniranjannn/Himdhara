@@ -119,7 +119,6 @@ class ContactModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     settlement_id = Column(String(50), index=True, nullable=False)
     name = Column(String(100), nullable=False)
-    phone = Column(String(20), nullable=True)
     email = Column(String(150), nullable=True)
     language = Column(String(5), default="en")  # 'en' or 'ne'
     active = Column(Boolean, default=True)
@@ -127,7 +126,7 @@ class ContactModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class NotificationModel(Base):
-    """Persistent delivery log for every SMS or email the system sends."""
+    """Persistent delivery log for every email the system sends."""
     __tablename__ = "notifications"
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)

@@ -14,7 +14,7 @@ class AlertDispatcher:
     Module E: Alert Dispatcher & Real-Time Broadcast Hub
     ----------------------------------------------------
     Manages active WebSocket connections for the live operations dashboard
-    and routes multi-channel emergency alert notifications (SMS/Email simulations).
+    and routes multi-channel emergency alert notifications (email).
     """
 
     def __init__(self):
@@ -54,7 +54,7 @@ class AlertDispatcher:
         })
 
     async def dispatch_alerts(self, alerts: list):
-        """Pushes cascaded downstream emergency alerts to dashboard and simulates SMS/Email dispatch."""
+        """Pushes cascaded downstream emergency alerts to dashboard and emails the affected settlement's contacts."""
         if not alerts:
             return
 
@@ -64,7 +64,7 @@ class AlertDispatcher:
             "data": alerts
         })
 
-        # 2. SMS / email delivery runs off the event loop (network I/O) and is persisted.
+        # 2. Email delivery runs off the event loop (network I/O) and is persisted.
         for alert in alerts:
             logger.info("Alert routed: %s <- %s (%s, ETA %s min)", alert["affected_settlement_name"],
                         alert["source_node_name"], alert["risk_level"], alert["eta_minutes"])

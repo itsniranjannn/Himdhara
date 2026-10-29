@@ -39,7 +39,7 @@ Connected to **Supabase PostgreSQL** cloud database and streaming live telemetry
 | **Module D** | Graph Propagation | Dijkstra shortest-path search on flood wave travel times to compute arrival ETAs | [DONE] |
 | **Module D** | Alert Prioritization | Downstream settlement ranking by earliest ETA with safe evacuation zones | [DONE] |
 | **Module E** | Real-time Dispatch | WebSocket server (`/ws/stream`) streaming telemetry & alerts to frontend | [DONE] |
-| **Module E** | Notification Sim | Emergency console broadcast & simulated SMS dispatch logging | [DONE] |
+| **Module E** | Notification Sim | Emergency console broadcast & email dispatch with delivery log | [DONE] |
 | **Module F** | GIS River Basin Map | Leaflet map with CartoDB dark theme, reach vectors, and colored risk beacons | [DONE] |
 | **Module F** | Telemetry Chart | Live Recharts showing real-time water level vs. EMA baseline envelope | [DONE] |
 | **Module F** | Cascading Alert Feed | ETA-ranked settlement cards with population at risk and acknowledge action | [DONE] |

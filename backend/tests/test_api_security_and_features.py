@@ -165,40 +165,41 @@ def test_input_bounds_are_validated(client, db):
 
 # ---- contacts, subscription, notifications ----
 def test_public_subscribe_validates_and_is_idempotent(client, db):
-    bad = client.post("/api/public/subscribe", json={"settlement_id": "S1", "phone": "12345"})
+    bad = client.post("/api/public/subscribe", json={"settlement_id": "S1", "email": "not-an-email"})
     assert bad.status_code == 422
-    assert client.post("/api/public/subscribe", json={"settlement_id": "NOPE", "phone": "9841234567"}).status_code == 404
-    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "phone": "9841234567", "language": "ne"}).status_code == 201
-    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "phone": "+977 984-1234567"}).status_code == 201
+    assert client.post("/api/public/subscribe", json={"settlement_id": "NOPE", "email": "a@example.com"}).status_code == 404
+    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "email": "A@Example.com", "language": "ne"}).status_code == 201
+    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "email": "a@example.com"}).status_code == 201
     contacts = db.query(ContactModel).all()
-    assert len(contacts) == 1 and contacts[0].phone == "+9779841234567"
+    assert len(contacts) == 1 and contacts[0].email == "a@example.com"
 
 
 def test_public_subscribe_is_rate_limited(client):
     for _ in range(5):
-        client.post("/api/public/subscribe", json={"settlement_id": "S1", "phone": "9841234567"})
-    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "phone": "9841234567"}).status_code == 429
+        client.post("/api/public/subscribe", json={"settlement_id": "S1", "email": "a@example.com"})
+    assert client.post("/api/public/subscribe", json={"settlement_id": "S1", "email": "a@example.com"}).status_code == 429
 
 
 def test_contacts_are_operator_only_and_validated(client, db):
     headers = bearer(db, "op")
     assert client.post("/api/contacts", json={"settlement_id": "S1", "name": "Ward office"}, headers=headers).status_code == 422
-    created = client.post("/api/contacts", json={"settlement_id": "S1", "name": "Ward office", "phone": "9801234567"}, headers=headers)
+    assert client.post("/api/contacts", json={"settlement_id": "S1", "name": "Ward office", "email": "nope"}, headers=headers).status_code == 422
+    created = client.post("/api/contacts", json={"settlement_id": "S1", "name": "Ward office", "email": "ward@example.com"}, headers=headers)
     assert created.status_code == 201
     assert client.get("/api/contacts", headers=bearer(db, "view")).status_code == 403
     assert client.delete(f"/api/contacts/{created.json()['id']}", headers=headers).status_code == 200
 
 
 def test_notifier_logs_per_contact_in_their_language(db):
-    db.add(ContactModel(settlement_id="S1", name="A", phone="+9779801234567", email="a@example.com", language="ne"))
-    db.add(ContactModel(settlement_id="S1", name="B", phone="+9779811234567", language="en"))
+    db.add(ContactModel(settlement_id="S1", name="A", email="a@example.com", language="ne"))
+    db.add(ContactModel(settlement_id="S1", name="B", email="b@example.com", language="en"))
     db.commit()
     alert = {"alert_id": "A1", "affected_settlement_id": "S1", "affected_settlement_name": "Town",
              "risk_level": "CRITICAL", "eta_minutes": 12, "evacuation_zone": "School ground"}
-    assert notifier.notify_alert(db, alert) == 3  # A: sms + email, B: sms
+    assert notifier.notify_alert(db, alert) == 2
     rows = db.query(NotificationModel).order_by(NotificationModel.id).all()
-    assert all(r.status == "SIMULATED" for r in rows)
-    assert "अति खतरा" in rows[0].content and "FLOOD CRITICAL" in rows[2].content
+    assert all(r.status == "SIMULATED" and r.channel == "email" for r in rows)
+    assert "अति खतरा" in rows[0].content and "FLOOD CRITICAL" in rows[1].content
 
 
 def test_notifier_records_gap_when_no_contacts(db):

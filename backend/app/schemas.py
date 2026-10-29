@@ -73,13 +73,12 @@ class NewUserRequest(BaseModel):
 class ContactCreate(BaseModel):
     settlement_id: str
     name: str = Field(min_length=1, max_length=100)
-    phone: Optional[str] = Field(default=None, max_length=20)
-    email: Optional[str] = Field(default=None, max_length=150)
+    email: str = Field(max_length=150)
     language: str = Field(default="en", pattern="^(en|ne)$")
 
 class PublicSubscribe(BaseModel):
     settlement_id: str
-    phone: str = Field(max_length=20)
+    email: str = Field(max_length=150)
     language: str = Field(default="en", pattern="^(en|ne)$")
 
 class AlertTransitionRequest(BaseModel):

@@ -19,16 +19,16 @@ const ROUTES = ["/", "/app/monitor", "/app/alerts", "/app/analytics", "/app/inci
 const LEGACY = { "/monitor": "/app/monitor", "/alerts": "/app/alerts", "/incidents": "/app/incidents", "/configuration": "/app/configuration", "/public": "/bulletin", "/app": "/app/monitor" };
 const HISTORY_LIMIT = 120;
 const TITLES = { "/": "River early warning for Nepal", "/bulletin": "Public bulletin", "/app/monitor": "Monitor", "/app/alerts": "Alerts", "/app/analytics": "Analytics", "/app/incidents": "Incidents", "/app/configuration": "Configuration" };
-const BASIN_KEY = "ews-basin";
+const BASIN_KEY = "himdhara-basin";
 
 const pathFromLocation = () => {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   return LEGACY[path] || (ROUTES.includes(path) ? path : "/");
 };
-const readSession = () => { try { return JSON.parse(localStorage.getItem("trishuli-session")) || null; } catch { return null; } };
+const readSession = () => { try { return JSON.parse(localStorage.getItem("himdhara-session")) || null; } catch { return null; } };
 const readTheme = () => {
-  try { const saved = localStorage.getItem("trishuli-theme"); if (saved) return saved; } catch { /* storage unavailable */ }
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  try { const saved = localStorage.getItem("himdhara-theme"); if (saved) return saved; } catch { /* storage unavailable */ }
+  return "light";
 };
 const readBasin = () => {
   const fromUrl = new URLSearchParams(window.location.search).get("basin");
@@ -46,7 +46,7 @@ function SignInModal({ reason, onClose, onSignedIn }) {
     setError("");
     try {
       const session = await login(form.get("username"), form.get("password"));
-      localStorage.setItem("trishuli-session", JSON.stringify(session));
+      localStorage.setItem("himdhara-session", JSON.stringify(session));
       onSignedIn(session);
       onClose();
     } catch (failure) {
@@ -141,7 +141,7 @@ export default function App() {
   }, []);
 
   // --- document chrome ---
-  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("trishuli-theme", theme); } catch { /* storage unavailable */ } }, [theme]);
+  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("himdhara-theme", theme); } catch { /* storage unavailable */ } }, [theme]);
   useEffect(() => { document.title = `${TITLES[page]} | ${brand.title}`; }, [page]);
   useEffect(() => {
     const onPop = () => setPage(pathFromLocation());
@@ -151,8 +151,8 @@ export default function App() {
   }, [page]);
   useEffect(() => {
     const expire = () => { setSession(null); setSignIn({ reason: "Your session ended. Sign in again to continue." }); };
-    window.addEventListener("trishuli-session-expired", expire);
-    return () => window.removeEventListener("trishuli-session-expired", expire);
+    window.addEventListener("himdhara-session-expired", expire);
+    return () => window.removeEventListener("himdhara-session-expired", expire);
   }, []);
 
   // --- data loading (everything once; basins are filtered client-side) ---
@@ -241,7 +241,7 @@ export default function App() {
   }, [refreshAlerts, refreshBasins]);
   const { isConnected } = useWebSocket(WS_URL, onMessage);
 
-  const signOut = () => { localStorage.removeItem("trishuli-session"); setSession(null); };
+  const signOut = () => { localStorage.removeItem("himdhara-session"); setSession(null); };
   const askSignIn = (reason) => setSignIn({ reason });
   const openDemo = () => (session?.role === "operator" ? setDemoOpen(true) : askSignIn("Sign in as an operator to run the demo."));
   const onThresholdsSaved = (nodeId, thresholds) => setAllNodes((current) => current.map((node) => (node.node_id === nodeId ? { ...node, thresholds } : node)));

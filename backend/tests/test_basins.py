@@ -1,4 +1,4 @@
-"""Multi-basin behaviour: data files, routing isolation, API filtering, free weather + Telegram."""
+"""Multi-basin behaviour: data files, routing isolation, API filtering, free weather + email delivery."""
 import json
 
 import pytest
@@ -156,34 +156,41 @@ def test_weather_endpoint_never_errors(client, monkeypatch):
     assert client.get("/api/basins/atlantis/weather").status_code == 404
 
 
-# ---- free Telegram channel ----
-def test_telegram_alert_is_sent_once_per_alert_and_token_is_never_logged(db, monkeypatch):
-    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "123:SECRET")
-    monkeypatch.setattr(settings, "TELEGRAM_CHAT_ID", "@river_alerts")
+# ---- email delivery (the only channel) ----
+def test_email_alert_goes_to_each_registered_contact_once(db, monkeypatch):
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "smtp")
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test")
+    monkeypatch.setattr(settings, "SMTP_FROM", "alerts@test")
     sent = []
 
-    class Reply:
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=0): sent.append(("connect", host))
         def __enter__(self): return self
         def __exit__(self, *args): return False
-        def read(self): return b'{"ok": true}'
+        def starttls(self): sent.append(("tls",))
+        def login(self, user, password): sent.append(("login", user))
+        def send_message(self, message): sent.append(("mail", message["To"], message["Subject"]))
 
-    monkeypatch.setattr("app.notifier.urllib.request.urlopen", lambda request, timeout=0: sent.append(request) or Reply())
-    db.add_all([ContactModel(settlement_id="S_A", name="x", phone="+9779801234567"), ContactModel(settlement_id="S_A", name="y", phone="+9779811234567")])
+    monkeypatch.setattr("app.notifier.smtplib.SMTP", FakeSMTP)
+    db.add_all([ContactModel(settlement_id="S_A", name="x", email="x@example.com"), ContactModel(settlement_id="S_A", name="y", email="y@example.com", language="ne")])
     db.commit()
     alert = {"alert_id": "AL_A", "affected_settlement_id": "S_A", "affected_settlement_name": "Town A", "risk_level": "CRITICAL", "eta_minutes": 9}
-    notifier.notify_alert(db, alert)
-    rows = db.query(NotificationModel).filter(NotificationModel.channel == "telegram").all()
-    assert len(rows) == 1 and rows[0].status == "SENT" and rows[0].recipient == "@river_alerts"
-    assert len(sent) == 1 and "bot123:SECRET/sendMessage" in sent[0].full_url
+    assert notifier.notify_alert(db, alert) == 2
+    mails = [s for s in sent if s[0] == "mail"]
+    assert [m[1] for m in mails] == ["x@example.com", "y@example.com"]
+    assert "Flood CRITICAL" in mails[0][2] and "अति खतरा" in mails[1][2]
+    assert {r.status for r in db.query(NotificationModel).all()} == {"SENT"}
 
 
-def test_telegram_failure_hides_token(db, monkeypatch):
-    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "123:SECRET")
-    monkeypatch.setattr(settings, "TELEGRAM_CHAT_ID", "@river_alerts")
-    def boom(request, timeout=0): raise OSError("HTTP 401 for https://api.telegram.org/bot123:SECRET/sendMessage")
-    monkeypatch.setattr("app.notifier.urllib.request.urlopen", boom)
-    status, error = notifier.send_telegram("hello")
-    assert status == "FAILED" and "SECRET" not in error
+def test_email_failure_is_logged_and_hides_the_password(db, monkeypatch):
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "smtp")
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test")
+    monkeypatch.setattr(settings, "SMTP_FROM", "alerts@test")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "hunter2")
+    def boom(*args, **kwargs): raise OSError("auth failed for hunter2")
+    monkeypatch.setattr("app.notifier.smtplib.SMTP", boom)
+    status, error = notifier.send_email("x@example.com", "subject", "body")
+    assert status == "FAILED" and "hunter2" not in error
 
 
 def test_coordinates_are_inside_nepal_and_settlements_sit_near_their_station():
