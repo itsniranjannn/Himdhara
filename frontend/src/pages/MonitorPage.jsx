@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, CheckCircle2, CircleAlert, Minus, WifiOff } from "lucide-react";
 import RiverMap from "../components/RiverMap";
 import LineChart from "../components/LineChart";
+import RainOutlook from "../components/RainOutlook";
 import { EmptyState, Loading, RiskLabel, Stat } from "../components/ui";
 import { RISK_RANK, formatClock, lastSeen, parseUtc, riskOf, timeAgo, toNumber } from "../lib/format";
 
@@ -36,7 +37,7 @@ function ForecastStrip({ forecast }) {
   </div>;
 }
 
-export default function MonitorPage({ nodes, loaded, topology, live, history, selectedId, onSelect, stats, openAlerts, forecast, theme, now, staleSeconds, navigate }) {
+export default function MonitorPage({ nodes, loaded, basin, topology, live, history, selectedId, onSelect, stats, openAlerts, forecast, weather, theme, now, staleSeconds, navigate }) {
   const [metric, setMetric] = useState("water");
   const station = nodes.find((node) => node.node_id === selectedId) || nodes[0];
   const stationRisk = station ? riskOf(station, live, now, staleSeconds) : "STALE";
@@ -49,19 +50,19 @@ export default function MonitorPage({ nodes, loaded, topology, live, history, se
   const auditRows = [...readings].slice(-8).reverse();
 
   if (!loaded) return <div className="page"><Loading label="Loading stations…" /></div>;
-  if (!nodes.length) return <div className="page"><EmptyState icon={WifiOff}>No stations are registered yet. Start the backend and simulator.</EmptyState></div>;
+  if (!nodes.length || !station) return <div className="page"><EmptyState icon={WifiOff}>No stations are registered for this basin yet. Start the backend and simulator.</EmptyState></div>;
 
   return <div className="page monitor-page">
     <div className="stats-grid">
       <Stat value={risks.filter((r) => r === "CRITICAL").length} label="Critical stations" tone={risks.includes("CRITICAL") ? "critical" : ""} />
       <Stat value={risks.filter((r) => r === "WARNING").length} label="Warning stations" tone={risks.includes("WARNING") ? "warning" : ""} />
       <Stat value={openAlerts.length} label="Open settlement alerts" tone={openAlerts.length ? "warning" : ""} />
-      <Stat value={stats ? stats.total_readings.toLocaleString() : "—"} label="Readings stored" />
+      <Stat value={stats ? stats.total_readings.toLocaleString() : "—"} label="Readings stored (all basins)" />
     </div>
     {risks.includes("STALE") && <p className="stale-notice"><WifiOff size={14} /> {risks.filter((r) => r === "STALE").length} station(s) offline: no reading for over {staleSeconds}s.</p>}
     <div className="monitor-grid">
       <section className="panel map-panel"><div className="panel-title-row"><h2>Station network</h2><span>Select a marker or station row</span></div>
-        <RiverMap theme={theme} nodes={nodes} settlements={topology?.settlements || []} topology={topology} selectedNodeId={station.node_id} onSelectNode={onSelect} latestTelemetryMap={live} riskFor={(node) => riskOf(node, live, now, staleSeconds)} />
+        <RiverMap key={basin?.basin_id} theme={theme} nodes={nodes} settlements={topology?.settlements || []} topology={topology} selectedNodeId={station.node_id} onSelectNode={onSelect} latestTelemetryMap={live} riskFor={(node) => riskOf(node, live, now, staleSeconds)} />
       </section>
       <section className="panel settlement-panel"><div className="panel-title-row"><h2>Settlement alerts</h2><span>{sortedAlerts.length}</span></div>
         {sortedAlerts.length
@@ -85,6 +86,7 @@ export default function MonitorPage({ nodes, loaded, topology, live, history, se
       <LineChart points={points} thresholds={metric === "water" ? station.thresholds : {}} unit={meta.unit} showThresholds={metric === "water"} ariaLabel={`${station.name} ${meta.label} over time`} />
       <ForecastStrip forecast={forecast} />
     </section>
+    <RainOutlook weather={weather} />
     <section className="panel station-panel"><div className="panel-title-row"><h2>Station status</h2><span>{nodes.length} stations</span></div>
       {[...nodes].sort((a, b) => RISK_RANK[riskOf(b, live, now, staleSeconds)] - RISK_RANK[riskOf(a, live, now, staleSeconds)] || a.name.localeCompare(b.name)).map((node) => {
         const risk = riskOf(node, live, now, staleSeconds);

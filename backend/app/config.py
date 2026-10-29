@@ -80,6 +80,9 @@ class Settings(BaseModel):
     SMS_PROVIDER: str = os.getenv("SMS_PROVIDER", "simulated")
     SPARROW_TOKEN: str = os.getenv("SPARROW_TOKEN", "")
     SPARROW_FROM: str = os.getenv("SPARROW_FROM", "")
+    # Telegram is free: create a bot with @BotFather and a public channel residents can join.
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "simulated")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))

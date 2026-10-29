@@ -66,7 +66,7 @@ export default function LineChart({ points, thresholds = {}, unit = "", height =
   return <div ref={host} className="line-chart" style={{ height }}>
     <svg width={width} height={height} role="img" aria-label={ariaLabel} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
       {ticks.map((tick) => <g key={tick}><line className="lc-grid" x1={MARGIN.left} x2={width - MARGIN.right} y1={y(tick)} y2={y(tick)} /><text className="lc-axis" x={MARGIN.left - 6} y={y(tick) + 3} textAnchor="end">{tick % 1 ? tick.toFixed(1) : tick}</text></g>)}
-      {xTicks.map((t, i) => <text key={i} className="lc-axis" x={x(t)} y={height - 6} textAnchor={i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle"}>{formatClock(new Date(t))}</text>)}
+      {xTicks.map((t, i) => <text key={i} className="lc-axis" x={x(t)} y={height - 6} textAnchor={i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle"}>{formatClock(new Date(t), t1 - t0 < 10 * 60 * 1000)}</text>)}
       {showThresholds && THRESHOLD_STYLE.map(([key, label], index) => { const limit = limitFor(thresholds, key); return near.includes(limit) && <g key={key}><line className={`lc-threshold t${index}`} x1={MARGIN.left} x2={width - MARGIN.right} y1={y(limit)} y2={y(limit)} /><text className={`lc-threshold-label t${index}`} x={width - MARGIN.right - 4} y={y(limit) - 4} textAnchor="end">{label} {limit}</text></g>; })}
       <path className="lc-area" d={area} />
       <path className="lc-line" d={path} />

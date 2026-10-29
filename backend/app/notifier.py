@@ -68,9 +68,21 @@ class Notifier:
                 return "FAILED", str(error)[:300]
         return "SIMULATED", None
 
+    def send_telegram(self, text: str) -> tuple[str, Optional[str]]:
+        """Post to the configured Telegram channel or group (free)."""
+        try:
+            body = urllib.parse.urlencode({"chat_id": settings.TELEGRAM_CHAT_ID, "text": text}).encode()
+            url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
+            with urllib.request.urlopen(urllib.request.Request(url, data=body), timeout=10) as response:
+                result = json.loads(response.read().decode() or "{}")
+            return ("SENT", None) if result.get("ok") else ("FAILED", str(result)[:300])
+        except Exception as error:
+            # Never put the bot token (part of the URL) into the log.
+            return "FAILED", str(error).replace(settings.TELEGRAM_BOT_TOKEN, "***")[:300]
+
     def notify_alert(self, db: Session, alert: dict) -> int:
         """Deliver one alert to every active contact of its settlement. Returns messages logged."""
-        provider = {"sms": settings.SMS_PROVIDER, "email": settings.EMAIL_PROVIDER}
+        provider = {"sms": settings.SMS_PROVIDER, "email": settings.EMAIL_PROVIDER, "telegram": "telegram"}
         contacts = db.query(ContactModel).filter(
             ContactModel.settlement_id == alert["affected_settlement_id"], ContactModel.active.is_(True)).all()
         count = 0
@@ -81,6 +93,9 @@ class Notifier:
                                      recipient=recipient, content=content, status=status, error=error))
             count += 1
 
+        if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID:
+            text = build_message(alert)
+            record("telegram", settings.TELEGRAM_CHAT_ID, text, *self.send_telegram(text))
         if not contacts:
             # Nobody has registered for this settlement: keep a record so operators can see the gap.
             record("sms", f"settlement:{alert['affected_settlement_id']}", build_message(alert), "SIMULATED", "No contacts registered")

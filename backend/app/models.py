@@ -7,6 +7,7 @@ class NodeModel(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     node_id = Column(String(50), unique=True, index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     name = Column(String(100), nullable=False)
     node_type = Column(String(30), default="SENSOR_STATION")
     elevation_m = Column(Float, nullable=False)
@@ -45,6 +46,7 @@ class AlertModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     alert_id = Column(String(50), unique=True, index=True, nullable=False)
     source_node_id = Column(String(50), index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     source_node_name = Column(String(100), nullable=False)
     affected_settlement_id = Column(String(50), nullable=False)
     affected_settlement_name = Column(String(100), nullable=False)
@@ -95,6 +97,7 @@ class IncidentModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     incident_id = Column(String(60), unique=True, index=True, nullable=False)
     source_node_id = Column(String(50), index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     peak_risk = Column(String(20), nullable=False)
     started_at = Column(DateTime, nullable=False)
     recovered_at = Column(DateTime, nullable=True)
@@ -104,6 +107,7 @@ class SettlementModel(Base):
     __tablename__ = "settlements"
     id = Column(Integer, primary_key=True, index=True)
     settlement_id = Column(String(50), unique=True, index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     name = Column(String(100), nullable=False)
     evacuation_zone = Column(String(255), nullable=True)
     population = Column(Integer, default=0)

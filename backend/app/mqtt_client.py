@@ -78,6 +78,13 @@ class MQTTIngestionService:
         except Exception as e:
             logger.error(f"Failed to connect to MQTT broker: {e}")
 
+    def publish_control(self, topic: str, payload: str, timeout: float = 5.0) -> None:
+        """Publish over the already-open connection (QoS 1). Raises if the broker does not confirm in time."""
+        info = self.client.publish(topic, payload, qos=1)
+        info.wait_for_publish(timeout=timeout)
+        if not info.is_published():
+            raise TimeoutError("MQTT broker did not confirm the publish in time")
+
     def stop(self):
         if self.client:
             self.client.loop_stop()
@@ -215,6 +222,7 @@ class MQTTIngestionService:
                             alert_id=new_alert_id,
                             source_node_id=alt["source_node_id"],
                             source_node_name=alt["source_node_name"],
+                            basin_id=alt.get("basin_id", "trishuli"),
                             affected_settlement_id=alt["affected_settlement_id"],
                             affected_settlement_name=alt["affected_settlement_name"],
                             eta_minutes=alt["eta_minutes"],
@@ -268,7 +276,8 @@ class MQTTIngestionService:
                     IncidentModel.recovered_at.is_(None)).first()
                 if not incident:
                     db.add(IncidentModel(incident_id=f"INC-{node_id}-{int(ts.timestamp())}-{uuid4().hex[:6]}",
-                                          source_node_id=node_id, peak_risk=risk_level, started_at=ts))
+                                          source_node_id=node_id, peak_risk=risk_level, started_at=ts,
+                                          basin_id=node_rec.basin_id if node_rec else "trishuli"))
                 elif incident.peak_risk == "WARNING" and risk_level == "CRITICAL":
                     incident.peak_risk = "CRITICAL"
             elif risk_level in ("WATCH", "NORMAL"):

@@ -1,4 +1,5 @@
 import argparse
+import glob
 import json
 import os
 import random
@@ -17,10 +18,8 @@ load_dotenv()
 TELEMETRY_BASE = os.getenv("MQTT_TOPIC_TELEMETRY", "nepal/trishuli/sensors/#").rstrip("#").rstrip("/")
 CONTROL_TOPIC = os.getenv("MQTT_TOPIC_CONTROL", "nepal/trishuli/control/spike")
 
-# Path to shared river topology
-TOPOLOGY_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "shared", "river_topology.json")
-)
+# Every basin file under shared/basins/ gets simulated stations.
+BASINS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared", "basins"))
 
 class SensorNode:
     def __init__(self, config: dict):
@@ -147,19 +146,22 @@ class RiverNetworkSimulator:
         self._load_topology()
 
     def _load_topology(self):
-        if not os.path.exists(TOPOLOGY_PATH):
-            raise FileNotFoundError(f"Topology JSON not found at: {TOPOLOGY_PATH}")
+        files = sorted(glob.glob(os.path.join(BASINS_DIR, "*.json")))
+        if not files:
+            raise FileNotFoundError(f"No basin files found in: {BASINS_DIR}")
 
-        with open(TOPOLOGY_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        for path in files:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            basin_id = data["basin"]["basin_id"]
+            for n in data.get("nodes", []):
+                node = SensorNode(n)
+                node.basin_id = basin_id
+                self.nodes[node.node_id] = node
 
-        for n in data.get("nodes", []):
-            node = SensorNode(n)
-            self.nodes[node.node_id] = node
-
-        print(f"[*] Initialized {len(self.nodes)} simulated sensor nodes in Trishuli Watershed:")
+        print(f"[*] Initialized {len(self.nodes)} simulated sensor nodes across {len(files)} basins:")
         for nid, n in self.nodes.items():
-            print(f"   * {nid}: {n.name} (Elev: {n.elevation_m}m, Base Water: {n.base_water_level}cm)")
+            print(f"   * [{n.basin_id}] {nid}: {n.name} (Base Water: {n.base_water_level}cm)")
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:

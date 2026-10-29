@@ -1,4 +1,5 @@
 import React from "react";
+import { brand } from "../config/brand";
 
 export default function Logo({ variant = "full", className = "" }) {
   const mark = (
@@ -9,5 +10,5 @@ export default function Logo({ variant = "full", className = "" }) {
     </svg>
   );
   if (variant === "mark") return mark;
-  return <span className="logo-lockup">{mark}<span><strong>TRISHULI</strong><small>EARLY WARNING SYSTEM</small></span></span>;
+  return <span className="logo-lockup">{mark}<span><strong>{brand.name}</strong><small>{brand.tagline}</small></span></span>;
 }

@@ -1,14 +1,27 @@
 {
-  "basin_name": "Trishuli River Basin & Watershed",
-  "region": "Bagmati Province, Nepal",
+  "basin": {
+    "basin_id": "trishuli",
+    "order": 1,
+    "name": "Trishuli",
+    "name_ne": "त्रिशूली",
+    "full_name": "Trishuli & Bhotekoshi River Basin",
+    "region": "Bagmati Province",
+    "description": "Langtang and Bhotekoshi headwaters flowing south past Dhunche, Betrawati and Trishuli Bazaar.",
+    "center": [
+      28.05,
+      85.3
+    ],
+    "zoom": 10,
+    "simulated": true
+  },
   "nodes": [
     {
       "node_id": "NODE_LANGTANG_01",
       "name": "Langtang Glacier Catchment",
       "type": "SENSOR_STATION",
       "elevation_m": 3820,
-      "lat": 28.2150,
-      "lng": 85.5700,
+      "lat": 28.215,
+      "lng": 85.57,
       "description": "High-altitude glacial & rainfall runoff gauge station",
       "baseline": {
         "rainfall_mm": 2.5,
@@ -21,8 +34,16 @@
         "water_level_critical": 160.0
       },
       "downstream_targets": [
-        { "target_id": "NODE_SYAPRUBESI_03", "travel_time_min": 25, "type": "reach" },
-        { "target_id": "SETTLE_DHUNCHE", "travel_time_min": 18, "type": "settlement" }
+        {
+          "target_id": "NODE_SYAPRUBESI_03",
+          "travel_time_min": 25,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_DHUNCHE",
+          "travel_time_min": 18,
+          "type": "settlement"
+        }
       ]
     },
     {
@@ -30,8 +51,8 @@
       "name": "Upper Bhotekoshi Gorge",
       "type": "SENSOR_STATION",
       "elevation_m": 2410,
-      "lat": 28.1600,
-      "lng": 85.3400,
+      "lat": 28.16,
+      "lng": 85.34,
       "description": "Steep rocky canyon prone to flash torrents and debris blockages",
       "baseline": {
         "rainfall_mm": 3.0,
@@ -44,8 +65,16 @@
         "water_level_critical": 185.0
       },
       "downstream_targets": [
-        { "target_id": "NODE_SYAPRUBESI_03", "travel_time_min": 15, "type": "reach" },
-        { "target_id": "SETTLE_SYAPRU", "travel_time_min": 12, "type": "settlement" }
+        {
+          "target_id": "NODE_SYAPRUBESI_03",
+          "travel_time_min": 15,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_SYAPRU",
+          "travel_time_min": 12,
+          "type": "settlement"
+        }
       ]
     },
     {
@@ -53,8 +82,8 @@
       "name": "Syaprubesi River Confluence",
       "type": "SENSOR_STATION",
       "elevation_m": 1460,
-      "lat": 28.1550,
-      "lng": 85.3350,
+      "lat": 28.155,
+      "lng": 85.335,
       "description": "Major confluence of Langtang Khola and Bhotekoshi River",
       "baseline": {
         "rainfall_mm": 2.0,
@@ -67,8 +96,16 @@
         "water_level_critical": 210.0
       },
       "downstream_targets": [
-        { "target_id": "NODE_MAILUNG_04", "travel_time_min": 22, "type": "reach" },
-        { "target_id": "SETTLE_SYAPRU", "travel_time_min": 5, "type": "settlement" }
+        {
+          "target_id": "NODE_MAILUNG_04",
+          "travel_time_min": 22,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_SYAPRU",
+          "travel_time_min": 5,
+          "type": "settlement"
+        }
       ]
     },
     {
@@ -76,8 +113,8 @@
       "name": "Mailung Landslide Sector",
       "type": "SENSOR_STATION",
       "elevation_m": 1050,
-      "lat": 28.0500,
-      "lng": 85.2400,
+      "lat": 28.05,
+      "lng": 85.24,
       "description": "Unstable hillslope monitor with high pore pressure & soil saturation risk",
       "baseline": {
         "rainfall_mm": 4.0,
@@ -90,8 +127,16 @@
         "water_level_critical": 230.0
       },
       "downstream_targets": [
-        { "target_id": "NODE_BETRAWATI_05", "travel_time_min": 20, "type": "reach" },
-        { "target_id": "SETTLE_BETRAWATI", "travel_time_min": 24, "type": "settlement" }
+        {
+          "target_id": "NODE_BETRAWATI_05",
+          "travel_time_min": 20,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_BETRAWATI",
+          "travel_time_min": 24,
+          "type": "settlement"
+        }
       ]
     },
     {
@@ -99,8 +144,8 @@
       "name": "Betrawati Bridge Gauge",
       "type": "SENSOR_STATION",
       "elevation_m": 620,
-      "lat": 27.9780,
-      "lng": 85.1820,
+      "lat": 27.978,
+      "lng": 85.182,
       "description": "Mid-basin flood warning post above densely inhabited settlement",
       "baseline": {
         "rainfall_mm": 1.5,
@@ -113,9 +158,21 @@
         "water_level_critical": 250.0
       },
       "downstream_targets": [
-        { "target_id": "NODE_TRISHULI_06", "travel_time_min": 15, "type": "reach" },
-        { "target_id": "SETTLE_BETRAWATI", "travel_time_min": 4, "type": "settlement" },
-        { "target_id": "SETTLE_TRISHULI", "travel_time_min": 22, "type": "settlement" }
+        {
+          "target_id": "NODE_TRISHULI_06",
+          "travel_time_min": 15,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_BETRAWATI",
+          "travel_time_min": 4,
+          "type": "settlement"
+        },
+        {
+          "target_id": "SETTLE_TRISHULI",
+          "travel_time_min": 22,
+          "type": "settlement"
+        }
       ]
     },
     {
@@ -123,8 +180,8 @@
       "name": "Trishuli Hydropower Headworks",
       "type": "SENSOR_STATION",
       "elevation_m": 570,
-      "lat": 27.9350,
-      "lng": 85.1500,
+      "lat": 27.935,
+      "lng": 85.15,
       "description": "Critical infrastructure barrage & settlement monitoring terminal",
       "baseline": {
         "rainfall_mm": 1.0,
@@ -137,8 +194,16 @@
         "water_level_critical": 275.0
       },
       "downstream_targets": [
-        { "target_id": "SETTLE_TRISHULI", "travel_time_min": 6, "type": "settlement" },
-        { "target_id": "SETTLE_GALCHI", "travel_time_min": 35, "type": "settlement" }
+        {
+          "target_id": "SETTLE_TRISHULI",
+          "travel_time_min": 6,
+          "type": "settlement"
+        },
+        {
+          "target_id": "SETTLE_GALCHI",
+          "travel_time_min": 35,
+          "type": "settlement"
+        }
       ]
     }
   ],
@@ -146,40 +211,40 @@
     {
       "settlement_id": "SETTLE_DHUNCHE",
       "name": "Dhunche Town & District Hospital",
-      "lat": 28.1130,
-      "lng": 85.2970,
+      "lat": 28.113,
+      "lng": 85.297,
       "population": 12000,
       "evacuation_zone": "Highland Helipad & Upper Ridge Safe Zone"
     },
     {
       "settlement_id": "SETTLE_SYAPRU",
       "name": "Syaprubesi Bazaar",
-      "lat": 28.1500,
-      "lng": 85.3300,
+      "lat": 28.15,
+      "lng": 85.33,
       "population": 4500,
       "evacuation_zone": "Monastery Ridge Evacuation Point"
     },
     {
       "settlement_id": "SETTLE_BETRAWATI",
       "name": "Betrawati Market & Riverbank Settlement",
-      "lat": 27.9800,
-      "lng": 85.1850,
+      "lat": 27.98,
+      "lng": 85.185,
       "population": 8500,
       "evacuation_zone": "Betrawati Higher Secondary Grounds"
     },
     {
       "settlement_id": "SETTLE_TRISHULI",
       "name": "Trishuli Bazaar & Hydropower Colony",
-      "lat": 27.9300,
-      "lng": 85.1480,
+      "lat": 27.93,
+      "lng": 85.148,
       "population": 26000,
       "evacuation_zone": "District Sports Stadium & Trishuli Hospital Heights"
     },
     {
       "settlement_id": "SETTLE_GALCHI",
       "name": "Galchi Prithvi Highway Junction",
-      "lat": 27.8180,
-      "lng": 85.0350,
+      "lat": 27.818,
+      "lng": 85.035,
       "population": 15000,
       "evacuation_zone": "Prithvi Highway Elevated Bypass"
     }

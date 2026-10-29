@@ -16,7 +16,7 @@ function RiskBar({ counts }) {
   </div>;
 }
 
-export default function AnalyticsPage({ nodes, selectedId, session, onSignIn }) {
+export default function AnalyticsPage({ nodes, basinId, selectedId, session, onSignIn }) {
   const [hours, setHours] = useState(6);
   const [nodeId, setNodeId] = useState(selectedId || nodes[0]?.node_id || "");
   // Results are stored with the request they answer, so a stale response is never shown for a new selection.
@@ -32,9 +32,9 @@ export default function AnalyticsPage({ nodes, selectedId, session, onSignIn }) 
 
   useEffect(() => {
     let cancelled = false;
-    fetchAnalytics(hours).then((data) => !cancelled && setSummaryState({ key: String(hours), data })).catch((failure) => !cancelled && setError(failure.message));
+    fetchAnalytics(hours, basinId).then((data) => !cancelled && setSummaryState({ key: String(hours), data })).catch((failure) => !cancelled && setError(failure.message));
     return () => { cancelled = true; };
-  }, [hours]);
+  }, [hours, basinId]);
 
   useEffect(() => {
     if (!nodeKey) return undefined;

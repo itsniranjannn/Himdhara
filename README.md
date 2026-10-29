@@ -53,6 +53,50 @@ The system is designed for a viva/demo deployment, but the boundaries between th
 - Provides a public bulletin with station conditions, general safety guidance, and settlement evacuation points.
 - Supports SQLite for zero-configuration local development and PostgreSQL for hosted deployments.
 
+## Basins (multi-basin support)
+
+The system monitors several Nepal river basins at once. Each basin is one JSON file in `shared/basins/`:
+
+| File | Basin | Stations | Settlements |
+|---|---|---|---|
+| `trishuli.json` | Trishuli & Bhotekoshi | 6 | 5 |
+| `bagmati.json` | Bagmati (Kathmandu Valley) | 5 | 5 |
+| `koshi.json` | Koshi (Sunkoshi to the Koshi Barrage) | 4 | 5 |
+| `gandaki.json` | Kaligandaki - Narayani | 4 | 4 |
+| `karnali.json` | Karnali | 3 | 3 |
+
+**All basins are demonstration data.** Sensors are simulated and station/settlement coordinates, populations and evacuation points are illustrative, not surveyed. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
+
+### Adding a basin
+
+1. Copy an existing file in `shared/basins/` and change the `basin` header (`basin_id`, `name`, `name_ne`, `region`, `center`, `zoom`, `order`).
+2. Define `nodes` (stations with `baseline`, `thresholds` and `downstream_targets` with travel times in minutes) and `settlements`.
+3. Restart the backend and simulator. Nothing else changes: the basin appears in the switcher, the landing page, the bulletin and the API.
+
+`backend/app/topology.py` validates every file at startup and in the tests: unique IDs across basins, coordinates inside Nepal, increasing thresholds, positive travel times, and downstream targets that exist.
+
+### API
+
+`GET /api/basins` lists basins with station, settlement and open-alert counts. `nodes`, `alerts`, `settlements`, `incidents`, `stats`, `analytics/summary` and `network/topology` accept `?basin=<id>`. Alerts are routed only within their own basin.
+
+## Free resources used
+
+Everything runs on free tools and services, with no API key or paid plan required:
+
+| Need | Resource |
+|---|---|
+| Database | SQLite file inside the project (PostgreSQL optional) |
+| MQTT broker | HiveMQ public broker, protected by a private random topic prefix |
+| Map tiles | OpenStreetMap (follow its tile usage policy; for heavy traffic use a tile host or your own server) |
+| Rain forecast | Open-Meteo (free, no key, CC BY 4.0, attribution shown in the UI), cached 30 minutes |
+| Alerts to the public | Telegram channel via a free bot (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), plus email through any SMTP server such as a free Gmail app password |
+| Fonts | Plus Jakarta Sans, Inter, JetBrains Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
+
+SMS through Sparrow SMS is supported but is a paid service. It is off by default.
+
+## Design system
+
+Tokens live in `frontend/src/styles/tokens.css` (palette "Himal": cool slate neutrals, cobalt brand, a four-step risk scale with Nepal's crimson reserved for critical). Typography is Plus Jakarta Sans for headings, Inter for the interface, JetBrains Mono for numbers, and Noto Sans Devanagari for Nepali. Risk is never shown by colour alone: every state also has a text label. `npm run check:contrast` verifies WCAG AA contrast for every text/background pair in both themes. The product name lives in `frontend/src/config/brand.js`.
 ## Architecture
 
 ```text
@@ -84,13 +128,13 @@ The system is designed for a viva/demo deployment, but the boundaries between th
                     | users, history, incidents   |
                     +-----------------------------+
 
-Shared river_topology.json supplies station coordinates,
+Basin files in shared/basins/ supply station coordinates,
 thresholds, directed edges, settlement metadata, and travel times.
 ```
 
 ### End-to-end processing
 
-1. `sensor-sim/simulator.py` loads `shared/river_topology.json` and publishes one telemetry message per station every five seconds.
+1. `sensor-sim/simulator.py` loads every file in `shared/basins/` and publishes one telemetry message per station every five seconds.
 2. `backend/app/mqtt_client.py` subscribes to `nepal/trishuli/sensors/#`.
 3. The ingestion service validates the payload, finds the station, computes anomaly metrics, and writes a `SensorReadingModel`.
 4. The station's latest risk and timestamp become visible through `/api/nodes`.
@@ -107,7 +151,7 @@ thresholds, directed edges, settlement metadata, and travel times.
 ├── .env.example                       # Environment variable template
 ├── start_all.ps1                      # Windows launcher for all services
 ├── shared/
-│   └── river_topology.json            # Stations, settlements, edges, thresholds
+│   └── basins/*.json                  # One file per river basin: stations, settlements, edges, thresholds
 ├── sensor-sim/
 │   ├── simulator.py                   # Six-node MQTT simulator
 │   └── trigger_spike.py               # Command-line spike publisher
@@ -326,7 +370,7 @@ rules; the dashboard displays the matching reason beside the selected station.
 
 ## Graph routing and alert lifecycle
 
-`shared/river_topology.json` defines a directed weighted graph containing sensor stations, settlement targets, and hydraulic travel-time edges. Dijkstra's algorithm calculates the shortest downstream travel time from an affected source to each settlement:
+Each file in `shared/basins/` defines a directed weighted graph containing sensor stations, settlement targets, and hydraulic travel-time edges. Dijkstra's algorithm calculates the shortest downstream travel time from an affected source to each settlement:
 
 ```text
 ETA(settlement) = current_time + shortest_travel_time(source, settlement)

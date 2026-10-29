@@ -37,8 +37,11 @@ def migrate_schema():
             "status": "VARCHAR(20) DEFAULT 'ACTIVE'",
             "acknowledged_at": "DATETIME", "acknowledged_by": "VARCHAR(100)",
             "acknowledgment_note": "TEXT", "resolved_at": "DATETIME",
-            "resolved_by": "VARCHAR(100)"
+            "resolved_by": "VARCHAR(100)", "basin_id": "VARCHAR(40) DEFAULT 'trishuli'"
         },
+        "nodes": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
+        "settlements": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
+        "incidents": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
         "sensor_readings": {
             "s_level": "FLOAT", "s_rate": "FLOAT", "s_soil": "FLOAT"
         }

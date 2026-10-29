@@ -1,0 +1,172 @@
+{
+  "basin": {
+    "basin_id": "gandaki",
+    "order": 4,
+    "name": "Gandaki",
+    "name_ne": "गण्डकी",
+    "full_name": "Kaligandaki - Narayani River Basin",
+    "region": "Gandaki & Lumbini Provinces",
+    "center": [
+      27.7,
+      84.1
+    ],
+    "zoom": 8,
+    "simulated": true,
+    "description": "Kaligandaki flows to the Narayani at Devghat, then through Narayangarh toward the Triveni barrage."
+  },
+  "nodes": [
+    {
+      "node_id": "NODE_GAN_RIDI_01",
+      "name": "Kaligandaki at Ridi",
+      "type": "SENSOR_STATION",
+      "elevation_m": 400,
+      "lat": 27.95,
+      "lng": 83.435,
+      "description": "Upper river gauge at the Ridi confluence",
+      "baseline": {
+        "rainfall_mm": 3.0,
+        "water_level_cm": 85.0,
+        "soil_moisture_pct": 47.0
+      },
+      "thresholds": {
+        "water_level_watch": 125.0,
+        "water_level_warning": 170.0,
+        "water_level_critical": 215.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_GAN_DEVGHAT_02",
+          "travel_time_min": 600,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_RIDI",
+          "travel_time_min": 10,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_GAN_DEVGHAT_02",
+      "name": "Devghat Confluence Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 190,
+      "lat": 27.723,
+      "lng": 84.434,
+      "description": "Confluence of the Kaligandaki and Trishuli above Narayangarh",
+      "baseline": {
+        "rainfall_mm": 2.0,
+        "water_level_cm": 100.0,
+        "soil_moisture_pct": 50.0
+      },
+      "thresholds": {
+        "water_level_watch": 140.0,
+        "water_level_warning": 185.0,
+        "water_level_critical": 230.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_GAN_NARAYANGHAT_03",
+          "travel_time_min": 12,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_DEVGHAT",
+          "travel_time_min": 5,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_GAN_NARAYANGHAT_03",
+      "name": "Narayanghat Bridge Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 180,
+      "lat": 27.695,
+      "lng": 84.421,
+      "description": "Bridge gauge above the Narayangarh city wards",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 110.0,
+        "soil_moisture_pct": 52.0
+      },
+      "thresholds": {
+        "water_level_watch": 150.0,
+        "water_level_warning": 195.0,
+        "water_level_critical": 240.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_GAN_TRIVENI_04",
+          "travel_time_min": 75,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_NARAYANGARH",
+          "travel_time_min": 4,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_GAN_TRIVENI_04",
+      "name": "Triveni Barrage Approach",
+      "type": "SENSOR_STATION",
+      "elevation_m": 140,
+      "lat": 27.495,
+      "lng": 84.1,
+      "description": "Approach gauge upstream of the Narayani barrage",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 120.0,
+        "soil_moisture_pct": 54.0
+      },
+      "thresholds": {
+        "water_level_watch": 160.0,
+        "water_level_warning": 205.0,
+        "water_level_critical": 250.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "SETTLE_TRIVENI",
+          "travel_time_min": 6,
+          "type": "settlement"
+        }
+      ]
+    }
+  ],
+  "settlements": [
+    {
+      "settlement_id": "SETTLE_RIDI",
+      "name": "Ridi Bazaar",
+      "lat": 27.949,
+      "lng": 83.434,
+      "population": 6000,
+      "evacuation_zone": "Ridi Ridge School Ground"
+    },
+    {
+      "settlement_id": "SETTLE_DEVGHAT",
+      "name": "Devghat Dham Settlements",
+      "lat": 27.724,
+      "lng": 84.432,
+      "population": 8000,
+      "evacuation_zone": "Devghat Hill Shelter"
+    },
+    {
+      "settlement_id": "SETTLE_NARAYANGARH",
+      "name": "Narayangarh Riverside Wards",
+      "lat": 27.698,
+      "lng": 84.424,
+      "population": 45000,
+      "evacuation_zone": "Narayangarh Stadium Grounds"
+    },
+    {
+      "settlement_id": "SETTLE_TRIVENI",
+      "name": "Triveni Riverside Settlements",
+      "lat": 27.5,
+      "lng": 84.105,
+      "population": 18000,
+      "evacuation_zone": "Triveni Embankment Shelter"
+    }
+  ]
+}

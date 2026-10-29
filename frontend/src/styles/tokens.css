@@ -1,0 +1,124 @@
+/* Design tokens.
+   Palette "Himal": cool slate neutrals, cobalt brand, and a four-step risk scale.
+   Typography: Plus Jakarta Sans (display) · Inter (UI/body) · JetBrains Mono (numbers/labels) · Noto Sans Devanagari (Nepali).
+   All fonts are free and self-hosted through @fontsource, so the app needs no external font service.
+   Contrast ratios for every text/background pair are asserted in frontend/scripts/check-contrast.mjs. */
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+@import "@fontsource/noto-sans-devanagari/400.css";
+@import "@fontsource/noto-sans-devanagari/500.css";
+@import "@fontsource/noto-sans-devanagari/600.css";
+@import "@fontsource/noto-sans-devanagari/700.css";
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces: 0 page · 1 panels/sidebar · 2 raised or hover · 3 selected/pressed */
+  --surface-0: #0a1020;
+  --surface-1: #101830;
+  --surface-2: #16213d;
+  --surface-3: #1d2b4d;
+  --border: #26365c;
+  --border-strong: #3b4d7a;
+
+  /* text */
+  --text-1: #eef3ff;
+  --text-2: #b9c5df;
+  --text-3: #8f9dbc;
+
+  /* brand */
+  --brand: #6c9cff;
+  --brand-hover: #94b6ff;
+  --brand-muted: #3f62b5;
+  --brand-soft: rgba(108, 156, 255, .14);
+  --on-brand: #0a1020;
+
+  /* risk scale: never convey risk by colour alone, always pair with a label */
+  --normal: #3fd08a;
+  --watch: #e5b93c;
+  --warning: #ff9650;
+  --critical: #ff6b7d;
+  --stale: #93a0ba;
+
+  /* type */
+  --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-body: "Inter", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 64px;
+  --leading-tight: 1.15;
+  --leading-body: 1.55;
+
+  /* space, 4px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* shape and depth */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-panel: 0 1px 2px rgba(2, 6, 18, .35);
+  --shadow-float: 0 24px 60px rgba(2, 6, 18, .55);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 45%, transparent);
+
+  /* motion */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-standard: cubic-bezier(.16, 1, .3, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+
+  /* layers */
+  --z-map: 0;
+  --z-sidebar: 90;
+  --z-header: 100;
+  --z-popover: 400;
+  --z-modal: 1000;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #edf1f8;
+  --surface-1: #ffffff;
+  --surface-2: #f4f7fc;
+  --surface-3: #e2e9f5;
+  --border: #d2dbea;
+  --border-strong: #a9b8d2;
+
+  --text-1: #0d1a2e;
+  --text-2: #33435d;
+  --text-3: #526480;
+
+  --brand: #1d4ed8;
+  --brand-hover: #1740b3;
+  --brand-muted: #8aa8ee;
+  --brand-soft: rgba(29, 78, 216, .09);
+  --on-brand: #ffffff;
+
+  --normal: #157a47;
+  --watch: #8a5d00;
+  --warning: #a64709;
+  --critical: #c4122f;
+  --stale: #5b6b84;
+
+  --shadow-panel: 0 1px 2px rgba(20, 40, 80, .06), 0 4px 14px rgba(20, 40, 80, .05);
+  --shadow-float: 0 24px 60px rgba(20, 40, 80, .22);
+}

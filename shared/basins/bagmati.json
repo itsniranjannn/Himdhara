@@ -1,0 +1,216 @@
+{
+  "basin": {
+    "basin_id": "bagmati",
+    "order": 2,
+    "name": "Bagmati",
+    "name_ne": "बागमती",
+    "full_name": "Bagmati River, Kathmandu Valley",
+    "region": "Bagmati Province",
+    "center": [
+      27.7,
+      85.35
+    ],
+    "zoom": 11,
+    "simulated": true,
+    "description": "Urban river through Kathmandu Valley, prone to monsoon flash floods along dense riverbank settlements."
+  },
+  "nodes": [
+    {
+      "node_id": "NODE_BAG_SUNDARIJAL_01",
+      "name": "Sundarijal Headwater Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1460,
+      "lat": 27.765,
+      "lng": 85.42,
+      "description": "Forested headwater catchment above the valley",
+      "baseline": {
+        "rainfall_mm": 3.0,
+        "water_level_cm": 40.0,
+        "soil_moisture_pct": 45.0
+      },
+      "thresholds": {
+        "water_level_watch": 80.0,
+        "water_level_warning": 125.0,
+        "water_level_critical": 170.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_BAG_GOKARNA_02",
+          "travel_time_min": 14,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_GOKARNA",
+          "travel_time_min": 12,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_BAG_GOKARNA_02",
+      "name": "Gokarneshwar Bridge Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1330,
+      "lat": 27.744,
+      "lng": 85.378,
+      "description": "First urban reach below the headwater",
+      "baseline": {
+        "rainfall_mm": 2.0,
+        "water_level_cm": 55.0,
+        "soil_moisture_pct": 46.0
+      },
+      "thresholds": {
+        "water_level_watch": 95.0,
+        "water_level_warning": 140.0,
+        "water_level_critical": 185.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_BAG_PASHUPATI_03",
+          "travel_time_min": 12,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_GOKARNA",
+          "travel_time_min": 3,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_BAG_PASHUPATI_03",
+      "name": "Pashupati Ghat Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1300,
+      "lat": 27.7108,
+      "lng": 85.3485,
+      "description": "Heritage ghats with heavy pedestrian presence",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 65.0,
+        "soil_moisture_pct": 48.0
+      },
+      "thresholds": {
+        "water_level_watch": 105.0,
+        "water_level_warning": 150.0,
+        "water_level_critical": 195.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_BAG_THAPATHALI_04",
+          "travel_time_min": 18,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_TILGANGA",
+          "travel_time_min": 3,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_BAG_THAPATHALI_04",
+      "name": "Thapathali Riverbank Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1285,
+      "lat": 27.693,
+      "lng": 85.3165,
+      "description": "Dense riverbank settlements within the channel margin",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 70.0,
+        "soil_moisture_pct": 50.0
+      },
+      "thresholds": {
+        "water_level_watch": 110.0,
+        "water_level_warning": 155.0,
+        "water_level_critical": 200.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_BAG_CHOBHAR_05",
+          "travel_time_min": 20,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_THAPATHALI",
+          "travel_time_min": 3,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_BAG_CHOBHAR_05",
+      "name": "Chobhar Gorge Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1260,
+      "lat": 27.654,
+      "lng": 85.292,
+      "description": "Gorge outlet where the valley river leaves Kathmandu",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 75.0,
+        "soil_moisture_pct": 50.0
+      },
+      "thresholds": {
+        "water_level_watch": 115.0,
+        "water_level_warning": 160.0,
+        "water_level_critical": 205.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "SETTLE_CHOBHAR",
+          "travel_time_min": 5,
+          "type": "settlement"
+        },
+        {
+          "target_id": "SETTLE_SUNAKOTHI",
+          "travel_time_min": 22,
+          "type": "settlement"
+        }
+      ]
+    }
+  ],
+  "settlements": [
+    {
+      "settlement_id": "SETTLE_GOKARNA",
+      "name": "Gokarna Riverside Wards",
+      "lat": 27.745,
+      "lng": 85.38,
+      "population": 18000,
+      "evacuation_zone": "Gokarna Ridge Open Ground"
+    },
+    {
+      "settlement_id": "SETTLE_TILGANGA",
+      "name": "Tilganga & Pashupati Area",
+      "lat": 27.712,
+      "lng": 85.351,
+      "population": 22000,
+      "evacuation_zone": "Pashupati Hill Open Ground"
+    },
+    {
+      "settlement_id": "SETTLE_THAPATHALI",
+      "name": "Thapathali & Teku Riverbank Settlements",
+      "lat": 27.6925,
+      "lng": 85.315,
+      "population": 30000,
+      "evacuation_zone": "Tundikhel Open Grounds"
+    },
+    {
+      "settlement_id": "SETTLE_CHOBHAR",
+      "name": "Chobhar Riverside Settlement",
+      "lat": 27.656,
+      "lng": 85.293,
+      "population": 9000,
+      "evacuation_zone": "Chobhar Hill Community Ground"
+    },
+    {
+      "settlement_id": "SETTLE_SUNAKOTHI",
+      "name": "Sunakothi Lowland Wards",
+      "lat": 27.638,
+      "lng": 85.305,
+      "population": 12000,
+      "evacuation_zone": "Sunakothi Ridge School Grounds"
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "basin": {
+    "basin_id": "karnali",
+    "order": 5,
+    "name": "Karnali",
+    "name_ne": "कर्णाली",
+    "full_name": "Karnali River Basin",
+    "region": "Sudurpashchim & Karnali Provinces",
+    "center": [
+      28.65,
+      81.3
+    ],
+    "zoom": 9,
+    "simulated": true,
+    "description": "Nepal's longest river, with the Chisapani gorge gauge guarding the western Terai."
+  },
+  "nodes": [
+    {
+      "node_id": "NODE_KAR_UPPER_01",
+      "name": "Upper Karnali Gorge Gauge",
+      "type": "SENSOR_STATION",
+      "elevation_m": 1200,
+      "lat": 28.95,
+      "lng": 81.9,
+      "description": "Steep gorge reach with rapid runoff response",
+      "baseline": {
+        "rainfall_mm": 3.0,
+        "water_level_cm": 80.0,
+        "soil_moisture_pct": 44.0
+      },
+      "thresholds": {
+        "water_level_watch": 120.0,
+        "water_level_warning": 165.0,
+        "water_level_critical": 210.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_KAR_CHISAPANI_02",
+          "travel_time_min": 150,
+          "type": "reach"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_KAR_CHISAPANI_02",
+      "name": "Chisapani Gauge Station",
+      "type": "SENSOR_STATION",
+      "elevation_m": 215,
+      "lat": 28.642,
+      "lng": 81.287,
+      "description": "Gorge outlet where the Karnali meets the plains",
+      "baseline": {
+        "rainfall_mm": 2.0,
+        "water_level_cm": 110.0,
+        "soil_moisture_pct": 50.0
+      },
+      "thresholds": {
+        "water_level_watch": 150.0,
+        "water_level_warning": 195.0,
+        "water_level_critical": 240.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "NODE_KAR_RAJAPUR_03",
+          "travel_time_min": 55,
+          "type": "reach"
+        },
+        {
+          "target_id": "SETTLE_CHISAPANI",
+          "travel_time_min": 5,
+          "type": "settlement"
+        },
+        {
+          "target_id": "SETTLE_TIKAPUR",
+          "travel_time_min": 40,
+          "type": "settlement"
+        }
+      ]
+    },
+    {
+      "node_id": "NODE_KAR_RAJAPUR_03",
+      "name": "Rajapur Barrage Site",
+      "type": "SENSOR_STATION",
+      "elevation_m": 150,
+      "lat": 28.47,
+      "lng": 81.1,
+      "description": "Floodplain gauge above the Rajapur island settlements",
+      "baseline": {
+        "rainfall_mm": 1.5,
+        "water_level_cm": 130.0,
+        "soil_moisture_pct": 53.0
+      },
+      "thresholds": {
+        "water_level_watch": 170.0,
+        "water_level_warning": 215.0,
+        "water_level_critical": 260.0
+      },
+      "downstream_targets": [
+        {
+          "target_id": "SETTLE_RAJAPUR",
+          "travel_time_min": 6,
+          "type": "settlement"
+        }
+      ]
+    }
+  ],
+  "settlements": [
+    {
+      "settlement_id": "SETTLE_CHISAPANI",
+      "name": "Chisapani Bazaar",
+      "lat": 28.643,
+      "lng": 81.286,
+      "population": 6000,
+      "evacuation_zone": "Chisapani Hill School Ground"
+    },
+    {
+      "settlement_id": "SETTLE_TIKAPUR",
+      "name": "Tikapur Riverside Wards",
+      "lat": 28.527,
+      "lng": 81.128,
+      "population": 60000,
+      "evacuation_zone": "Tikapur Higher Ground Campus"
+    },
+    {
+      "settlement_id": "SETTLE_RAJAPUR",
+      "name": "Rajapur Island Settlements",
+      "lat": 28.465,
+      "lng": 81.105,
+      "population": 35000,
+      "evacuation_zone": "Embankment Safe Shelter Block"
+    }
+  ]
+}

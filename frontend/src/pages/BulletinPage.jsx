@@ -36,7 +36,7 @@ function Subscribe({ t, settlements, lang }) {
   </section>;
 }
 
-export default function BulletinPage({ nodes, openAlerts, settlements, live, now, staleSeconds, apiDown, loaded, theme, onToggleTheme, navigate }) {
+export default function BulletinPage({ basins, basin, onBasinChange, nodes, openAlerts, settlements, live, now, staleSeconds, apiDown, loaded, weather, theme, onToggleTheme, navigate }) {
   const [lang, setLang] = useState(() => { try { return localStorage.getItem("trishuli-lang") || "en"; } catch { return "en"; } });
   const t = messages[lang];
   const choose = (code) => { setLang(code); try { localStorage.setItem("trishuli-lang", code); } catch { /* storage unavailable */ } };
@@ -49,6 +49,7 @@ export default function BulletinPage({ nodes, openAlerts, settlements, live, now
     <header className="public-header">
       <a href="/" onClick={(event) => { event.preventDefault(); navigate("/"); }} aria-label="Trishuli home"><Logo variant="full" /></a>
       <div>
+        {basins.length > 0 && <select className="public-basin" aria-label={t.basinLabel} value={basin?.basin_id || ""} onChange={(event) => onBasinChange(event.target.value)}>{basins.map((item) => <option key={item.basin_id} value={item.basin_id}>{lang === "ne" ? item.name_ne || item.name : item.name}</option>)}</select>}
         <div className="lang-switch" role="group" aria-label="Language">{Object.entries(LANGUAGES).map(([code, label]) => <button key={code} className={lang === code ? "on" : ""} aria-pressed={lang === code} onClick={() => choose(code)}>{label}</button>)}</div>
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         <a className="public-dashboard-link" href="/app/monitor" onClick={(event) => { event.preventDefault(); navigate("/app/monitor"); }}>{t.operations}</a>
@@ -56,7 +57,7 @@ export default function BulletinPage({ nodes, openAlerts, settlements, live, now
     </header>
     <div className="public-shell">
       <section className="public-hero">
-        <div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p>{t.intro}</p></div>
+        <div><p className="eyebrow">{t.eyebrow}{basin ? ` · ${(lang === "ne" ? basin.name_ne : basin.name).toUpperCase()}` : ""}</p><h1>{t.title}</h1><p>{t.intro(basin ? (lang === "ne" ? basin.name_ne : basin.name) : "")}</p>{basin?.simulated && <span className="demo-data-note">{t.simulatedNote}</span>}</div>
         <div className={`public-status ${status}`} role="status"><StatusIcon size={22} /><strong>{status === "offline" ? t.offline : status === "active" ? t.active : t.clear}</strong><span>{status === "offline" ? t.offlineBody : status === "active" ? t.activeBody : t.clearBody}</span></div>
       </section>
 
@@ -78,7 +79,14 @@ export default function BulletinPage({ nodes, openAlerts, settlements, live, now
         </section>
       </div>
 
-      <Subscribe t={t} settlements={settlements} lang={lang} />
+      <section className="panel public-outlook">
+        <div className="panel-title-row"><h2>{t.rainTitle}</h2>{weather?.level && <span className={`rain-badge ${weather.level}`}>{t.rainLevels[weather.level]}</span>}</div>
+        {weather?.status === "OK" || weather?.status === "STALE"
+          ? <p>{t.rainBody(Math.round(Math.max(...weather.stations.map((station) => station.next_24h_mm), 0)))} <small className="muted"><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">{t.rainCredit}</a></small></p>
+          : <p className="muted">{t.rainUnavailable}</p>}
+      </section>
+
+      <Subscribe key={basin?.basin_id} t={t} settlements={settlements} lang={lang} />
 
       <section className="emergency"><h2><Phone size={16} /> {t.emergency}</h2><div>{t.emergencyItems.map(([label, number]) => <a key={label} href={`tel:${number}`}><b>{t.num(number)}</b><span>{label}</span></a>)}</div></section>
       <p className="disclaimer">{t.disclaimer}</p>

@@ -42,6 +42,7 @@ class SettlementAlert(BaseModel):
 
 class NodeStatus(BaseModel):
     node_id: str
+    basin_id: str = "trishuli"
     name: str
     node_type: str
     elevation_m: float

@@ -26,15 +26,24 @@ class GraphAlertPropagationEngine:
         # Node metadata map (names, types, coordinates, population, etc.)
         self.nodes_info: Dict[str, Dict[str, Any]] = {}
         self.settlements_info: Dict[str, Dict[str, Any]] = {}
-        
-        if topology_path and os.path.exists(topology_path):
-            self.load_topology(topology_path)
+
+        if topology_path:
+            if os.path.isdir(topology_path):
+                self.load_basins(topology_path)
+            elif os.path.exists(topology_path):
+                self.load_topology(topology_path)
+
+    def load_basins(self, directory: str):
+        """Loads every basin file in a directory into one graph (basins are disjoint components)."""
+        from .topology import load_basins, merged
+        self.load_data(merged(load_basins(directory)))
 
     def load_topology(self, filepath: str):
-        """Loads river graph topology from JSON configuration file."""
+        """Loads river graph topology from a single JSON file with `nodes` and `settlements`."""
         with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            self.load_data(json.load(f))
 
+    def load_data(self, data: Dict[str, Any]):
         self.adj.clear()
         self.nodes_info.clear()
         self.settlements_info.clear()
@@ -102,6 +111,7 @@ class GraphAlertPropagationEngine:
                     "alert_id": alert_id,
                     "source_node_id": trigger_node_id,
                     "source_node_name": source_name,
+                    "basin_id": self.nodes_info.get(trigger_node_id, {}).get("basin_id", "trishuli"),
                     "affected_settlement_id": curr_id,
                     "affected_settlement_name": settle.get("name", curr_id),
                     "eta_minutes": round(curr_eta, 1),
@@ -126,8 +136,6 @@ class GraphAlertPropagationEngine:
         affected_settlements.sort(key=lambda x: x["eta_minutes"])
         return affected_settlements
 
-# Path to shared river topology
-DEFAULT_TOPOLOGY_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json")
-)
-graph_engine = GraphAlertPropagationEngine(DEFAULT_TOPOLOGY_PATH)
+# All basins under shared/basins/
+from .topology import BASINS_DIR  # noqa: E402
+graph_engine = GraphAlertPropagationEngine(BASINS_DIR)

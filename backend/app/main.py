@@ -6,6 +6,7 @@ import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import List, Optional
 
 import paho.mqtt.publish as publish
@@ -28,8 +29,9 @@ from .mqtt_client import mqtt_service
 from .schemas import (AlertTransitionRequest, ContactCreate, LoginRequest, NewUserRequest, NodeStatus,
                       PublicSubscribe, SettlementUpdate, SpikeInjectionRequest, ThresholdUpdate)
 from .seed_data import seed_river_network
+from .topology import basin_meta, load_basins
+from .weather import basin_outlook
 
-TOPOLOGY_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json"))
 OPEN_STATUSES = ["ACTIVE", "ACKNOWLEDGED"]
 NEPAL_MOBILE = re.compile(r"^(?:\+?977)?(9[78]\d{8})$")
 _main_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -75,6 +77,18 @@ def _push(message: dict) -> None:
         asyncio.run_coroutine_threadsafe(dispatcher.broadcast(message), _main_loop)
 
 
+@lru_cache(maxsize=1)
+def _basins() -> list:
+    return load_basins()
+
+
+def _basin_or_404(basin_id: str) -> dict:
+    for basin in _basins():
+        if basin["basin_id"] == basin_id:
+            return basin
+    raise HTTPException(status_code=404, detail="Basin not found")
+
+
 def _naive_utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -98,7 +112,7 @@ def _risk_reason(reading: SensorReadingModel, thresholds: dict) -> str:
 
 def _alert_dict(alert: AlertModel) -> dict:
     return {
-        "alert_id": alert.alert_id, "status": alert.status, "acknowledged": alert.acknowledged,
+        "alert_id": alert.alert_id, "basin_id": alert.basin_id, "status": alert.status, "acknowledged": alert.acknowledged,
         "source_node_id": alert.source_node_id, "source_node_name": alert.source_node_name,
         "affected_settlement_id": alert.affected_settlement_id,
         "affected_settlement_name": alert.affected_settlement_name,
@@ -140,6 +154,8 @@ def health_check():
         "seconds_since_last_message": round((datetime.now(timezone.utc) - last).total_seconds(), 1) if last else None,
         "rejected_messages": mqtt_service.rejected_messages,
         "active_clients": len(dispatcher.active_connections),
+        "basins": len(_basins()),
+        "telegram_enabled": bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID),
         "demo_controls_enabled": settings.DEMO_CONTROLS_ENABLED,
         "stale_after_seconds": settings.STALE_AFTER_SECONDS,
         "sms_provider": settings.SMS_PROVIDER,
@@ -147,26 +163,52 @@ def health_check():
     }
 
 
+def _basin_node_ids(db: Session, basin: Optional[str]) -> Optional[list]:
+    if not basin:
+        return None
+    return [row[0] for row in db.query(NodeModel.node_id).filter(NodeModel.basin_id == basin).all()]
+
+
 @app.get("/api/stats")
-def get_stats(db: Session = Depends(get_db)):
-    """Returns database telemetry counters and metrics."""
-    return {
-        "total_readings": db.query(SensorReadingModel).count(),
-        "total_nodes": db.query(NodeModel).count(),
-        "active_alerts": db.query(AlertModel).filter(AlertModel.status.in_(OPEN_STATUSES)).count(),
-    }
+def get_stats(basin: Optional[str] = None, db: Session = Depends(get_db)):
+    """Returns database telemetry counters and metrics, optionally for one basin."""
+    node_ids = _basin_node_ids(db, basin)
+    readings = db.query(SensorReadingModel)
+    nodes = db.query(NodeModel)
+    alerts = db.query(AlertModel).filter(AlertModel.status.in_(OPEN_STATUSES))
+    if node_ids is not None:
+        readings = readings.filter(SensorReadingModel.node_id.in_(node_ids))
+        nodes = nodes.filter(NodeModel.basin_id == basin)
+        alerts = alerts.filter(AlertModel.basin_id == basin)
+    return {"total_readings": readings.count(), "total_nodes": nodes.count(), "active_alerts": alerts.count()}
+
+
+@app.get("/api/basins")
+def list_basins(db: Session = Depends(get_db)):
+    """All configured basins with station, settlement and open-alert counts."""
+    open_alerts = dict(db.query(AlertModel.basin_id, func.count(AlertModel.id))
+                       .filter(AlertModel.status.in_(OPEN_STATUSES)).group_by(AlertModel.basin_id).all())
+    return [{**basin_meta(basin), "stations": len(basin["nodes"]), "settlements": len(basin["settlements"]),
+             "open_alerts": open_alerts.get(basin["basin_id"], 0)} for basin in _basins()]
+
+
+@app.get("/api/basins/{basin_id}/weather")
+def basin_weather(basin_id: str):
+    """Free Open-Meteo rain outlook for every station of a basin (cached 30 min)."""
+    basin = _basin_or_404(basin_id)
+    return basin_outlook(basin_id, basin["nodes"])
 
 
 @app.get("/api/network/topology")
-def get_topology():
-    """Returns the complete river topology graph for visualization."""
-    with open(TOPOLOGY_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+def get_topology(basin: Optional[str] = None):
+    """River topology graph for one basin (defaults to the first), for map drawing."""
+    selected = _basin_or_404(basin) if basin else _basins()[0]
+    return selected
 
 
 # --- Stations & telemetry ---
 @app.get("/api/nodes", response_model=List[NodeStatus])
-def get_nodes(db: Session = Depends(get_db)):
+def get_nodes(basin: Optional[str] = None, db: Session = Depends(get_db)):
     """Returns all sensor stations with current risk status and latest reading.
 
     A station that has not reported within STALE_AFTER_SECONDS is reported as STALE
@@ -174,7 +216,10 @@ def get_nodes(db: Session = Depends(get_db)):
     """
     results = []
     now = _naive_utc_now()
-    for n in db.query(NodeModel).all():
+    nodes_query = db.query(NodeModel)
+    if basin:
+        nodes_query = nodes_query.filter(NodeModel.basin_id == basin)
+    for n in nodes_query.order_by(NodeModel.id).all():
         latest = (
             db.query(SensorReadingModel)
             .filter(SensorReadingModel.node_id == n.node_id)
@@ -206,7 +251,7 @@ def get_nodes(db: Session = Depends(get_db)):
         elif not latest:
             effective_risk = "STALE"
         results.append(NodeStatus(
-            node_id=n.node_id, name=n.name, node_type=n.node_type, elevation_m=n.elevation_m,
+            node_id=n.node_id, basin_id=n.basin_id or "trishuli", name=n.name, node_type=n.node_type, elevation_m=n.elevation_m,
             lat=n.lat, lng=n.lng, description=n.description, current_risk=effective_risk,
             last_reading_at=latest.timestamp if latest else None,
             latest_reading=latest_dict, thresholds=thresholds,
@@ -253,21 +298,25 @@ def get_node_forecast(node_id: str, minutes: int = Query(10, ge=2, le=60), db: S
 
 
 @app.get("/api/analytics/summary")
-def analytics_summary(hours: float = Query(24, gt=0, le=24 * 30), db: Session = Depends(get_db)):
+def analytics_summary(hours: float = Query(24, gt=0, le=24 * 30), basin: Optional[str] = None, db: Session = Depends(get_db)):
     """Per-station statistics over a window, plus alert and incident counts."""
     start = window_start(hours)
-    names = {n.node_id: n.name for n in db.query(NodeModel).all()}
+    node_query = db.query(NodeModel)
+    if basin:
+        node_query = node_query.filter(NodeModel.basin_id == basin)
+    names = {n.node_id: n.name for n in node_query.all()}
     stats = (
         db.query(
             SensorReadingModel.node_id, func.count(SensorReadingModel.id), func.min(SensorReadingModel.water_level_cm),
             func.avg(SensorReadingModel.water_level_cm), func.max(SensorReadingModel.water_level_cm),
             func.max(SensorReadingModel.hsi_score), func.max(SensorReadingModel.rainfall_mm),
         )
-        .filter(SensorReadingModel.timestamp >= start).group_by(SensorReadingModel.node_id).all()
+        .filter(SensorReadingModel.timestamp >= start, SensorReadingModel.node_id.in_(list(names)))
+        .group_by(SensorReadingModel.node_id).all()
     )
     risk_rows = (
         db.query(SensorReadingModel.node_id, SensorReadingModel.risk_level, func.count(SensorReadingModel.id))
-        .filter(SensorReadingModel.timestamp >= start)
+        .filter(SensorReadingModel.timestamp >= start, SensorReadingModel.node_id.in_(list(names)))
         .group_by(SensorReadingModel.node_id, SensorReadingModel.risk_level).all()
     )
     risk_counts: dict = {}
@@ -279,11 +328,17 @@ def analytics_summary(hours: float = Query(24, gt=0, le=24 * 30), db: Session = 
         "hsi_max": round(row[5] or 0, 2), "rainfall_max_mm": round(row[6] or 0, 2),
         "risk_counts": risk_counts.get(row[0], {}),
     } for row in stats]
+    alert_query = db.query(AlertModel).filter(AlertModel.created_at >= start)
+    incident_query = db.query(IncidentModel).filter(IncidentModel.started_at >= start)
+    if basin:
+        alert_query = alert_query.filter(AlertModel.basin_id == basin)
+        incident_query = incident_query.filter(IncidentModel.basin_id == basin)
     return {
         "hours": hours,
+        "basin": basin,
         "stations": stations,
-        "alerts_created": db.query(AlertModel).filter(AlertModel.created_at >= start).count(),
-        "incidents_started": db.query(IncidentModel).filter(IncidentModel.started_at >= start).count(),
+        "alerts_created": alert_query.count(),
+        "incidents_started": incident_query.count(),
         "readings_total": sum(s["readings"] for s in stations),
     }
 
@@ -308,9 +363,11 @@ def export_readings(node_id: Optional[str] = None, hours: float = Query(24, gt=0
 # --- Alerts ---
 @app.get("/api/alerts")
 def get_alerts(active_only: bool = False, status: Optional[str] = Query(None, pattern="^(ACTIVE|ACKNOWLEDGED|RESOLVED)$"),
-               limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
+               basin: Optional[str] = None, limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
     """Recent alert cascades, newest first."""
     query = db.query(AlertModel)
+    if basin:
+        query = query.filter(AlertModel.basin_id == basin)
     if active_only:
         query = query.filter(AlertModel.status.in_(OPEN_STATUSES))
     elif status:
@@ -395,9 +452,12 @@ def update_thresholds(node_id: str, thresholds: ThresholdUpdate, db: Session = D
 
 
 @app.get("/api/settlements")
-def get_settlements(db: Session = Depends(get_db)):
+def get_settlements(basin: Optional[str] = None, db: Session = Depends(get_db)):
     """Settlement metadata for the dashboard and public bulletin."""
-    return db.query(SettlementModel).order_by(SettlementModel.name.asc()).all()
+    query = db.query(SettlementModel)
+    if basin:
+        query = query.filter(SettlementModel.basin_id == basin)
+    return query.order_by(SettlementModel.name.asc()).all()
 
 
 @app.put("/api/settlements/{settlement_id}")
@@ -419,8 +479,11 @@ def update_settlement(settlement_id: str, update: SettlementUpdate, db: Session 
 
 # --- Incidents ---
 @app.get("/api/incidents")
-def incidents(limit: int = Query(200, ge=1, le=1000), db: Session = Depends(get_db)):
-    return db.query(IncidentModel).order_by(IncidentModel.started_at.desc()).limit(limit).all()
+def incidents(basin: Optional[str] = None, limit: int = Query(200, ge=1, le=1000), db: Session = Depends(get_db)):
+    query = db.query(IncidentModel)
+    if basin:
+        query = query.filter(IncidentModel.basin_id == basin)
+    return query.order_by(IncidentModel.started_at.desc()).limit(limit).all()
 
 
 @app.get("/api/incidents/export.csv")
@@ -505,8 +568,12 @@ def notification_log(limit: int = Query(100, ge=1, le=500), db: Session = Depend
 def _publish_control(payload: dict) -> None:
     auth = {"username": settings.MQTT_USERNAME, "password": settings.MQTT_PASSWORD} if settings.MQTT_USERNAME else None
     try:
-        publish.single(topic=settings.MQTT_TOPIC_CONTROL, payload=json.dumps(payload),
-                       hostname=settings.MQTT_BROKER, port=settings.MQTT_PORT, auth=auth)
+        if mqtt_service.connected and mqtt_service.client:
+            # Reuse the live connection: no new TCP/TLS handshake and a bounded wait.
+            mqtt_service.publish_control(settings.MQTT_TOPIC_CONTROL, json.dumps(payload))
+        else:
+            publish.single(topic=settings.MQTT_TOPIC_CONTROL, payload=json.dumps(payload),
+                           hostname=settings.MQTT_BROKER, port=settings.MQTT_PORT, auth=auth)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Failed to publish control command: {e}")
 
