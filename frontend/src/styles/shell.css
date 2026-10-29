@@ -260,3 +260,5 @@
   .reading-tiles { grid-template-columns: repeat(2, 1fr); gap: var(--space-3) var(--space-5); width: 100%; }
   .page-heading-row { flex-direction: column; }
 }
+
+.mail-subject { display: block; margin-bottom: 2px; color: var(--text-1); font-weight: 600; }

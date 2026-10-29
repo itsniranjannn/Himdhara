@@ -75,7 +75,7 @@ function NotificationLog({ session, onSignIn }) {
   if (!rows) return <Loading label="Loading delivery log…" />;
   if (!rows.length) return <EmptyState>No messages sent yet. They appear here when an alert is routed.</EmptyState>;
   return <div className="table-scroll"><table className="audit-table"><thead><tr><th>Time (NPT)</th><th>Channel</th><th>Recipient</th><th>Status</th><th>Message</th></tr></thead><tbody>
-    {rows.map((row) => <tr key={row.id}><td>{formatNpt(row.created_at)}</td><td>{row.channel.toUpperCase()} · {row.provider}</td><td>{row.recipient}</td><td><span className={`status-pill ${row.status}`}><i /> {row.status}</span>{row.error && <small className="block">{row.error}</small>}</td><td className="wrap">{row.content}</td></tr>)}
+    {rows.map((row) => <tr key={row.id}><td>{formatNpt(row.created_at)}</td><td>{row.channel.toUpperCase()} · {row.provider}</td><td>{row.recipient}</td><td><span className={`status-pill ${row.status}`}><i /> {row.status}</span>{row.error && <small className="block">{row.error}</small>}</td><td className="wrap">{row.content.split("\n\n").map((part, i) => i === 0 ? <strong key={i} className="mail-subject">{part}</strong> : <span key={i} className="block">{part}</span>)}</td></tr>)}
   </tbody></table></div>;
 }
 

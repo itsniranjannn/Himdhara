@@ -56,6 +56,9 @@ def migrate_schema():
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
         if "status" in {c["name"] for c in inspector.get_columns("alerts")}:
             conn.execute(text("UPDATE alerts SET status='ACTIVE' WHERE status IS NULL"))
+        # "Latest reading per station" and per-station windows need this composite index; create_all
+        # does not add indexes to tables that already exist, so older databases get it here.
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_readings_node_time ON sensor_readings (node_id, timestamp)"))
         try:
             if engine.dialect.name == "sqlite":
                 conn.execute(text(
