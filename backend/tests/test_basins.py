@@ -210,3 +210,54 @@ def test_coordinates_are_inside_nepal_and_settlements_sit_near_their_station():
             for t in n.get("downstream_targets", []):
                 if t["type"] == "settlement":
                     assert km(n, by_settlement[t["target_id"]]) < 40, (n["name"], t["target_id"])
+
+
+# ---- modelled river discharge (GloFAS) ----
+def _flow_payload(stations, main_cell=4):
+    """One 3x3 block per station; only `main_cell` carries real water, like a gorge next to small streams."""
+    def cell(level):
+        return {"daily": {"river_discharge": [level + i for i in range(14)]}}
+    return [cell(900.0 if k % 9 == main_cell else 0.5) for k in range(len(stations) * 9)]
+
+
+def test_river_flow_picks_the_main_channel_and_summarises(monkeypatch):
+    from app import river_flow
+    river_flow.clear_cache()
+    stations = [{"node_id": "N1", "name": "A", "lat": 27.7, "lng": 84.4}, {"node_id": "N2", "name": "B", "lat": 27.9, "lng": 84.5}]
+    out = river_flow.basin_flow("x", stations, fetcher=lambda url: _flow_payload(stations))
+    assert out["status"] == "OK" and len(out["stations"]) == 2
+    first = out["stations"][0]
+    assert first["today_m3s"] == 907.0 and first["week_ago_m3s"] == 900.0 and first["trend"] == "STEADY"
+    assert first["next_7d_peak_m3s"] == 913.0 and len(first["series_m3s"]) == 14
+
+
+def test_river_flow_never_errors_and_serves_stale(client, monkeypatch):
+    from app import river_flow
+    river_flow.clear_cache()
+    def offline(stations, fetcher=None): raise OSError("offline")
+    monkeypatch.setattr("app.river_flow.fetch_flow", offline)
+    assert client.get("/api/basins/bagmati/flow").json()["status"] == "UNAVAILABLE"
+    assert client.get("/api/basins/atlantis/flow").status_code == 404
+
+
+def test_traced_river_channels_start_and_end_at_their_stations_and_stay_in_nepal():
+    from app import topology
+    traced = 0
+    for basin in topology.load_basins():
+        by_id = {n["node_id"]: n for n in basin["nodes"]}
+        for n in basin["nodes"]:
+            for t in n.get("downstream_targets", []):
+                path = t.get("path")
+                if t["type"] != "reach" or not path:
+                    continue
+                traced += 1
+                assert len(path) >= 2
+                assert path[0] == [n["lat"], n["lng"]] and path[-1] == [by_id[t["target_id"]]["lat"], by_id[t["target_id"]]["lng"]]
+                assert all(26.2 <= lat <= 30.6 and 79.9 <= lng <= 88.4 for lat, lng in path)
+    assert traced >= 15
+
+
+def test_topology_endpoint_serves_traced_channels(client):
+    topo = client.get("/api/network/topology?basin=gandaki").json()
+    reach = [t for n in topo["nodes"] for t in n["downstream_targets"] if t["type"] == "reach"]
+    assert reach and all(isinstance(t.get("path"), list) and len(t["path"]) > 2 for t in reach)

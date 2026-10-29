@@ -30,6 +30,7 @@ from .schemas import (AlertTransitionRequest, ContactCreate, LoginRequest, NewUs
                       PublicSubscribe, SettlementUpdate, SpikeInjectionRequest, ThresholdUpdate)
 from .seed_data import seed_river_network
 from .topology import basin_meta, load_basins
+from .river_flow import basin_flow
 from .weather import basin_outlook
 
 OPEN_STATUSES = ["ACTIVE", "ACKNOWLEDGED"]
@@ -195,6 +196,13 @@ def basin_weather(basin_id: str):
     """Free Open-Meteo rain outlook for every station of a basin (cached 30 min)."""
     basin = _basin_or_404(basin_id)
     return basin_outlook(basin_id, basin["nodes"])
+
+
+@app.get("/api/basins/{basin_id}/flow")
+def basin_river_flow(basin_id: str):
+    """Modelled river discharge (GloFAS via Open-Meteo, free) near every station of a basin, cached 3 h."""
+    basin = _basin_or_404(basin_id)
+    return basin_flow(basin_id, basin["nodes"])
 
 
 @app.get("/api/network/topology")

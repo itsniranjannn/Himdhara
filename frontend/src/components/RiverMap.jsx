@@ -137,6 +137,8 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
             id: `${n.node_id}->${t.target_id}`,
             from,
             to,
+            // Reaches carry the traced channel when the basin file has one; settlements stay straight spurs.
+            path: t.type === "reach" && Array.isArray(t.path) && t.path.length > 1 ? t.path : null,
             type: t.type,
             travelTime: t.travel_time_min
           });
@@ -166,7 +168,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
         {reaches.map((reach) => (
           <Polyline
             key={reach.id}
-            positions={[reach.from, reach.to]}
+            positions={reach.path || [reach.from, reach.to]}
             pathOptions={{
               color: reach.type === "settlement" ? "#b82e14" : "#1b4f7b",
               weight: reach.type === "settlement" ? 2 : 4,

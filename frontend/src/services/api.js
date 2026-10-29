@@ -57,6 +57,7 @@ const query = (params) => {
 export const fetchHealth = () => request("/health");
 export const fetchBasins = () => request("/basins");
 export const fetchWeather = (basinId) => request(`/basins/${basinId}/weather`);
+export const fetchFlow = (basinId) => request(`/basins/${basinId}/flow`);
 export const fetchNodes = () => request("/nodes");
 export const fetchTopology = (basin) => request(`/network/topology${query({ basin })}`);
 export const fetchStats = () => request("/stats");

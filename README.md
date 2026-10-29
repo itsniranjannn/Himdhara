@@ -65,7 +65,7 @@ The system monitors several Nepal river basins at once. Each basin is one JSON f
 | `gandaki.json` | Kaligandaki - Narayani | 4 | 4 |
 | `karnali.json` | Karnali | 3 | 3 |
 
-**Locations are checked, readings are simulated.** Every station sits on its river: coordinates were snapped to the nearest named river in OpenStreetMap, and each station's elevation is the free Open-Meteo terrain value at that point (an audit found 9 of 22 original positions were off the river and they were corrected). Sensor readings are simulated, and populations, evacuation points and travel times are illustrative, not surveyed. Station names are descriptive, not official DHM gauge identifiers. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
+**Locations are checked, readings are simulated.** Every station sits on its river: coordinates were snapped to the nearest named river in OpenStreetMap, and each station's elevation is the free Open-Meteo terrain value at that point (an audit found 9 of 22 original positions were off the river and they were corrected). Each `reach` link in the basin files carries a `path`, the real river channel between the two stations traced from OpenStreetMap (17 reaches, 16 followed the main stem as found and Upper Karnali was moved 67 km of channel upstream onto the connected main stem), so the map draws the winding river rather than a straight line. Sensor readings are simulated, and populations, evacuation points and travel times are illustrative, not surveyed. Station names are descriptive, not official DHM gauge identifiers. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
 
 ### Adding a basin
 
@@ -77,7 +77,7 @@ The system monitors several Nepal river basins at once. Each basin is one JSON f
 
 ### API
 
-`GET /api/basins` lists basins with station, settlement and open-alert counts. `nodes`, `alerts`, `settlements`, `incidents`, `stats`, `analytics/summary` and `network/topology` accept `?basin=<id>`. Alerts are routed only within their own basin.
+`GET /api/basins/{id}/flow` returns modelled river discharge (GloFAS) near each station as a real-world reference, and `GET /api/basins/{id}/weather` the rain outlook. `GET /api/basins` lists basins with station, settlement and open-alert counts. `nodes`, `alerts`, `settlements`, `incidents`, `stats`, `analytics/summary` and `network/topology` accept `?basin=<id>`. Alerts are routed only within their own basin.
 
 ## Free resources used
 
@@ -89,6 +89,8 @@ Everything runs on free tools and services, with no API key or paid plan require
 | MQTT broker | HiveMQ public broker, protected by a private random topic prefix |
 | Map tiles | OpenStreetMap (follow its tile usage policy; for heavy traffic use a tile host or your own server) |
 | Rain forecast | Open-Meteo (free, no key, CC BY 4.0, attribution shown in the UI), cached 30 minutes |
+| River flow reference | Open-Meteo Flood API (GloFAS model, free, no key, CC BY 4.0), cached 3 hours, `GET /api/basins/{id}/flow` |
+| River shapes | OpenStreetMap waterways, traced once and stored in the basin files (ODbL, attribution in the map footer) |
 | Alerts to the public | Email through any SMTP server, for example a free Gmail app password (`EMAIL_PROVIDER=smtp`, `SMTP_*`) |
 | Fonts | Fraunces, IBM Plex Sans, IBM Plex Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
 

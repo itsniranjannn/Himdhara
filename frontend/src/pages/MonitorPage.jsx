@@ -3,6 +3,7 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, CheckC
 import RiverMap from "../components/RiverMap";
 import LineChart from "../components/LineChart";
 import RainOutlook from "../components/RainOutlook";
+import RiverFlow from "../components/RiverFlow";
 import { EmptyState, Loading, RiskLabel } from "../components/ui";
 import { RISK_RANK, formatClock, lastSeen, parseUtc, riskOf, timeAgo, toNumber } from "../lib/format";
 
@@ -139,6 +140,7 @@ export default function MonitorPage({ nodes, loaded, basin, topology, live, hist
     </section>
 
     <RainOutlook weather={weather} />
+    {basin && <RiverFlow basinId={basin.basin_id} />}
 
     <details className="audit"><summary><Activity size={14} /> Algorithm audit: last readings for {station.name} <ChevronDown size={15} /></summary>
       {auditRows.length ? <div className="table-scroll"><table className="audit-table"><thead><tr><th>Time (NPT)</th><th>Water cm</th><th>Rain mm</th><th>Soil %</th><th>EMA cm</th><th>Rate cm/min</th><th>HSI</th><th>Risk</th></tr></thead><tbody>
