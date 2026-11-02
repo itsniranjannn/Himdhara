@@ -7,8 +7,17 @@ function AutoFitBounds({ nodes, settlements }) {
   const map = useMap();
   const hasFittedRef = useRef(false);
 
+  // The container can change size after mount (layout, fonts, theme); keep the tiles and view in step.
+  useEffect(() => {
+    const element = map.getContainer();
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [map]);
+
   useEffect(() => {
     if (hasFittedRef.current) return;
+    map.invalidateSize();
 
     const stationCoords = (nodes || [])
       .filter((n) => n.lat && n.lng)
@@ -36,12 +45,13 @@ function AutoFitBounds({ nodes, settlements }) {
 // Helper to create custom SVG div icons based on station risk status
 function createStationIcon(riskLevel, isSelected) {
   const colorMap = {
-    NORMAL: "#10b981",
-    WATCH: "#f59e0b",
-    WARNING: "#f97316",
-    CRITICAL: "#ef4444"
+    NORMAL: "#1c8a4e",
+    WATCH: "#d99a06",
+    WARNING: "#e0620d",
+    CRITICAL: "#d4142f",
+    STALE: "#6d7f87"
   };
-  const color = colorMap[riskLevel] || "#10b981";
+  const color = colorMap[riskLevel] || colorMap.NORMAL;
   const isCritical = riskLevel === "CRITICAL";
 
   const html = `
@@ -68,7 +78,7 @@ function createStationIcon(riskLevel, isSelected) {
         height: ${isSelected ? "22px" : "18px"};
         background: ${color};
         border-radius: 50%;
-        border: 2px solid #ffffff;
+        border: 2px solid #15222a;
         box-shadow: 0 0 0 3px color-mix(in srgb, ${color} 22%, transparent);
         transition: all 0.2s;
       "></div>
@@ -86,13 +96,13 @@ function createStationIcon(riskLevel, isSelected) {
 function createSettlementIcon() {
   const html = `
     <div style="
-      background: #2c8fa0;
-      border: 2px solid #eaf8f7;
+      background: #b82e14;
+      border: 2px solid #fff8ef;
       border-radius: 4px;
       width: 14px;
       height: 14px;
       transform: rotate(45deg);
-      box-shadow: 0 0 0 3px rgba(44, 143, 160, 0.2);
+      box-shadow: 0 0 0 3px rgba(184, 46, 20, 0.25);
     "></div>
   `;
   return L.divIcon({
@@ -103,7 +113,7 @@ function createSettlementIcon() {
   });
 }
 
-export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {}, theme = "dark" }) {
+export default function RiverMap({ nodes, settlements, topology, selectedNodeId, onSelectNode, latestTelemetryMap = {}, theme = "dark", riskFor }) {
   // Center roughly on Langtang - Trishuli basin (Lat: 28.08, Lng: 85.32)
   const centerPosition = [28.06, 85.32];
 
@@ -127,6 +137,8 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
             id: `${n.node_id}->${t.target_id}`,
             from,
             to,
+            // Reaches carry the traced channel when the basin file has one; settlements stay straight spurs.
+            path: t.type === "reach" && Array.isArray(t.path) && t.path.length > 1 ? t.path : null,
             type: t.type,
             travelTime: t.travel_time_min
           });
@@ -140,7 +152,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
       <MapContainer
         center={centerPosition}
         zoom={10}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
@@ -156,9 +168,9 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
         {reaches.map((reach) => (
           <Polyline
             key={reach.id}
-            positions={[reach.from, reach.to]}
+            positions={reach.path || [reach.from, reach.to]}
             pathOptions={{
-              color: reach.type === "settlement" ? "#5fb9c3" : "#2c8fa0",
+              color: reach.type === "settlement" ? "#b82e14" : "#1b4f7b",
               weight: reach.type === "settlement" ? 2 : 4,
               opacity: 0.7,
               dashArray: reach.type === "settlement" ? "4, 6" : undefined
@@ -170,7 +182,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
         {nodes.map((node) => {
           const isSelected = node.node_id === selectedNodeId;
           const live = latestTelemetryMap[node.node_id] || node.latest_reading || {};
-          const risk = live.risk_level || node.current_risk || "NORMAL";
+          const risk = riskFor ? riskFor(node) : (live.risk_level || node.current_risk || "NORMAL");
           const icon = createStationIcon(risk, isSelected);
 
           return (
@@ -188,9 +200,9 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                   <div style={{ color: "var(--text-3)", fontSize: "0.78rem", marginBottom: "6px" }}>
                     ID: {node.node_id} | Elev: {node.elevation_m}m
                   </div>
-                  <div>Status: <b>{risk}</b></div>
+                  <div>Status: <b>{risk === "STALE" ? "OFFLINE (no recent reading)" : risk}</b></div>
                   {(live.water_level_cm !== undefined || live.rate_of_change_cm_min !== undefined || live.hsi_score !== undefined) && (
-                    <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid #cbd5e1", paddingTop: "4px" }}>
+                    <div style={{ marginTop: "4px", fontSize: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: "4px" }}>
                       <div>Water: <b>{live.water_level_cm !== undefined ? Number(live.water_level_cm).toFixed(2) : "--"} cm</b></div>
                       <div>Rate: <b>{live.rate_of_change_cm_min ?? "--"} cm/min</b></div>
                       <div>HSI Score: <b>{live.hsi_score !== undefined && live.hsi_score !== null ? Number(live.hsi_score).toFixed(2) : "--"}</b></div>
@@ -203,7 +215,7 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
                     style={{
                       marginTop: "8px",
                     background: "var(--brand)",
-                      color: "white",
+                      color: "var(--on-brand)",
                       border: "none",
                       padding: "4px 8px",
                       borderRadius: "4px",
@@ -229,15 +241,15 @@ export default function RiverMap({ nodes, settlements, topology, selectedNodeId,
               position={[settle.lat, settle.lng]}
               icon={icon}
             >
-              <Popup>
-                <div style={{ color: "#0f172a", fontSize: "0.85rem", minWidth: "180px" }}>
-                  <div style={{ fontWeight: 700, color: "#1d4ed8" }}>{settle.name}</div>
-                  <div style={{ fontSize: "0.78rem", color: "#475569" }}>
+              <Popup className="custom-leaflet-popup">
+                <div style={{ fontSize: "0.85rem", minWidth: "180px" }}>
+                  <div style={{ fontWeight: 700 }}>{settle.name}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-3)" }}>
                     Population: <b>{(settle.population || 0).toLocaleString()}</b>
                   </div>
                   <div style={{ marginTop: "6px", fontSize: "0.76rem" }}>
-                    Evacuation Zone: <br/>
-                    <span style={{ color: "#047857", fontWeight: 600 }}>{settle.evacuation_zone}</span>
+                    Evacuation point: <br/>
+                    <span style={{ color: "var(--normal)", fontWeight: 600 }}>{settle.evacuation_zone}</span>
                   </div>
                 </div>
               </Popup>

@@ -1,4 +1,5 @@
 import argparse
+import glob
 import json
 import os
 import random
@@ -13,10 +14,12 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
 load_dotenv()
 
-# Path to shared river topology
-TOPOLOGY_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "shared", "river_topology.json")
-)
+# Topics come from .env so the simulator, backend and demo controls share one private prefix.
+TELEMETRY_BASE = os.getenv("MQTT_TOPIC_TELEMETRY", "nepal/trishuli/sensors/#").rstrip("#").rstrip("/")
+CONTROL_TOPIC = os.getenv("MQTT_TOPIC_CONTROL", "nepal/trishuli/control/spike")
+
+# Every basin file under shared/basins/ gets simulated stations.
+BASINS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared", "basins"))
 
 class SensorNode:
     def __init__(self, config: dict):
@@ -135,33 +138,37 @@ class RiverNetworkSimulator:
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"trishuli_sim_{int(time.time())}"
         )
+        if os.getenv("MQTT_USERNAME"):
+            self.client.username_pw_set(os.getenv("MQTT_USERNAME"), os.getenv("MQTT_PASSWORD", ""))
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
         self._load_topology()
 
     def _load_topology(self):
-        if not os.path.exists(TOPOLOGY_PATH):
-            raise FileNotFoundError(f"Topology JSON not found at: {TOPOLOGY_PATH}")
+        files = sorted(glob.glob(os.path.join(BASINS_DIR, "*.json")))
+        if not files:
+            raise FileNotFoundError(f"No basin files found in: {BASINS_DIR}")
 
-        with open(TOPOLOGY_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        for path in files:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            basin_id = data["basin"]["basin_id"]
+            for n in data.get("nodes", []):
+                node = SensorNode(n)
+                node.basin_id = basin_id
+                self.nodes[node.node_id] = node
 
-        for n in data.get("nodes", []):
-            node = SensorNode(n)
-            self.nodes[node.node_id] = node
-
-        print(f"[*] Initialized {len(self.nodes)} simulated sensor nodes in Trishuli Watershed:")
+        print(f"[*] Initialized {len(self.nodes)} simulated sensor nodes across {len(files)} basins:")
         for nid, n in self.nodes.items():
-            print(f"   * {nid}: {n.name} (Elev: {n.elevation_m}m, Base Water: {n.base_water_level}cm)")
+            print(f"   * [{n.basin_id}] {nid}: {n.name} (Base Water: {n.base_water_level}cm)")
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             print(f"\n[+] Simulator connected to MQTT Broker ({self.broker}:{self.port})")
             # Subscribe to remote control spike topic
-            control_topic = "nepal/trishuli/control/spike"
-            client.subscribe(control_topic)
-            print(f"[+] Listening for flood spike commands on: {control_topic}")
+            client.subscribe(CONTROL_TOPIC)
+            print(f"[+] Listening for flood spike commands on: {CONTROL_TOPIC}")
         else:
             print(f"[-] Connection failed with code {rc}")
 
@@ -202,7 +209,7 @@ class RiverNetworkSimulator:
             while True:
                 for node_id, node in self.nodes.items():
                     reading = node.step()
-                    topic = f"nepal/trishuli/sensors/{node_id}/telemetry"
+                    topic = f"{TELEMETRY_BASE}/{node_id}/telemetry"
                     payload_json = json.dumps(reading)
                     self.client.publish(topic, payload_json, qos=0)
                     

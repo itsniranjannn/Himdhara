@@ -1,0 +1,32 @@
+/* Reset, typography and focus. */
+* { box-sizing: border-box; }
+html { background: var(--surface-0); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-1);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--duration-base) var(--ease-out), color var(--duration-base) var(--ease-out);
+}
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: var(--leading-tight); letter-spacing: -.015em; color: var(--text-1); }
+p { margin: 0; }
+a { color: var(--brand); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:lang(ne) { letter-spacing: 0; }
+:lang(ne) h1, :lang(ne) h2, :lang(ne) h3 { line-height: 1.35; letter-spacing: 0; }
+/* tabular figures keep changing readings from jittering */
+.stat strong, .telemetry-meta b, .audit-table td, .station-row b, .lc-axis { font-variant-numeric: tabular-nums; }
+button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--brand); }
+::selection { background: color-mix(in srgb, var(--brand) 35%, transparent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

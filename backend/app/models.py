@@ -7,6 +7,7 @@ class NodeModel(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     node_id = Column(String(50), unique=True, index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     name = Column(String(100), nullable=False)
     node_type = Column(String(30), default="SENSOR_STATION")
     elevation_m = Column(Float, nullable=False)
@@ -37,12 +38,15 @@ class SensorReadingModel(Base):
     hsi_score = Column(Float, nullable=True)
     risk_level = Column(String(20), default="NORMAL")
 
+    __table_args__ = (Index("ix_readings_node_time", "node_id", "timestamp"),)
+
 class AlertModel(Base):
     __tablename__ = "alerts"
     
     id = Column(Integer, primary_key=True, index=True)
     alert_id = Column(String(50), unique=True, index=True, nullable=False)
     source_node_id = Column(String(50), index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     source_node_name = Column(String(100), nullable=False)
     affected_settlement_id = Column(String(50), nullable=False)
     affected_settlement_name = Column(String(100), nullable=False)
@@ -93,6 +97,7 @@ class IncidentModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     incident_id = Column(String(60), unique=True, index=True, nullable=False)
     source_node_id = Column(String(50), index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     peak_risk = Column(String(20), nullable=False)
     started_at = Column(DateTime, nullable=False)
     recovered_at = Column(DateTime, nullable=True)
@@ -102,7 +107,33 @@ class SettlementModel(Base):
     __tablename__ = "settlements"
     id = Column(Integer, primary_key=True, index=True)
     settlement_id = Column(String(50), unique=True, index=True, nullable=False)
+    basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     name = Column(String(100), nullable=False)
     evacuation_zone = Column(String(255), nullable=True)
     population = Column(Integer, default=0)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class ContactModel(Base):
+    """A person or office that receives alerts for a settlement."""
+    __tablename__ = "contacts"
+    id = Column(Integer, primary_key=True, index=True)
+    settlement_id = Column(String(50), index=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    email = Column(String(150), nullable=True)
+    language = Column(String(5), default="en")  # 'en' or 'ne'
+    active = Column(Boolean, default=True)
+    source = Column(String(20), default="operator")  # 'operator' or 'public'
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class NotificationModel(Base):
+    """Persistent delivery log for every email the system sends."""
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    alert_id = Column(String(50), index=True, nullable=True)
+    channel = Column(String(10), nullable=False)
+    provider = Column(String(20), nullable=False)
+    recipient = Column(String(150), nullable=False)
+    content = Column(Text, nullable=False)
+    status = Column(String(12), nullable=False, default="SENT")  # SENT, SIMULATED, FAILED
+    error = Column(Text, nullable=True)

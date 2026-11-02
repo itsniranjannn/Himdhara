@@ -1,6 +1,5 @@
-// Replace these values with the final project credits before the viva.
 export const credits = {
-  team: "Project team",
-  institution: "Academic final-year project",
-  contact: "Credits placeholder"
+  team: "Niranjan Katwal",
+  institution: "Pashupati Multiple Campus · 8th semester final-year project",
+  contact: "Trishuli & Bhotekoshi basin, Nepal"
 };

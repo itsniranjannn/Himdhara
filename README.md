@@ -1,4 +1,4 @@
-# Trishuli Flood & Landslide Early Warning System
+# Himdhara: River Early Warning for Nepal
 
 **8th Semester Engineering Final Year Project**  
 **Study area:** Trishuli and Bhotekoshi River Basin, Bagmati Province, Nepal
@@ -41,11 +41,64 @@ The system is designed for a viva/demo deployment, but the boundaries between th
 - Resolves open alerts when the source station returns to `NORMAL`.
 - Records acknowledgement, resolution, recovery, and operator history.
 - Broadcasts live telemetry and alert events over WebSocket.
-- Provides local/demo operator actions and a read-only viewer experience without a login prompt.
+- Read-only public access, with operator sign-in required for every state-changing action (see [Authentication](#authentication-and-authorization)).
+- Detects silent sensors: a station with no reading for `STALE_AFTER_SECONDS` (default 60) is shown as OFFLINE instead of its last risk band.
+- Short-horizon trend forecast per station (minutes until watch/warning/critical at the current rate, guidance only).
+- Operators acknowledge and resolve alerts with notes and a full history; alerts also auto-resolve on recovery.
+- Analytics page: water-level history over 1 h to 7 days, per-station statistics, risk-band time share, CSV export.
+- Alert delivery by email (SMTP, free) to registered contacts in English or Nepali, with a persistent delivery log. Defaults to simulated delivery. There is no SMS channel because SMS gateways are paid.
+- Public bulletin in English and Nepali, with resident self-registration for email alerts.
+- Telemetry validation (unknown stations, out-of-range or non-numeric values are rejected) and a private MQTT topic prefix.
 - Includes a modal Demo workflow for spike injection and simulator reset.
 - Provides a public bulletin with station conditions, general safety guidance, and settlement evacuation points.
 - Supports SQLite for zero-configuration local development and PostgreSQL for hosted deployments.
 
+## Basins (multi-basin support)
+
+The system monitors several Nepal river basins at once. Each basin is one JSON file in `shared/basins/`:
+
+| File | Basin | Stations | Settlements |
+|---|---|---|---|
+| `trishuli.json` | Trishuli & Bhotekoshi | 6 | 5 |
+| `bagmati.json` | Bagmati (Kathmandu Valley) | 5 | 5 |
+| `koshi.json` | Koshi (Sunkoshi to the Koshi Barrage) | 4 | 5 |
+| `gandaki.json` | Kaligandaki - Narayani | 4 | 4 |
+| `karnali.json` | Karnali | 3 | 3 |
+
+**Locations are checked, readings are simulated.** Every station sits on its river: coordinates were snapped to the nearest named river in OpenStreetMap, and each station's elevation is the free Open-Meteo terrain value at that point (an audit found 9 of 22 original positions were off the river and they were corrected). Each `reach` link in the basin files carries a `path`, the real river channel between the two stations traced from OpenStreetMap (17 reaches, 16 followed the main stem as found and Upper Karnali was moved 67 km of channel upstream onto the connected main stem), so the map draws the winding river rather than a straight line. Sensor readings are simulated, and populations, evacuation points and travel times are illustrative, not surveyed. Station names are descriptive, not official DHM gauge identifiers. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
+
+### Adding a basin
+
+1. Copy an existing file in `shared/basins/` and change the `basin` header (`basin_id`, `name`, `name_ne`, `region`, `center`, `zoom`, `order`).
+2. Define `nodes` (stations with `baseline`, `thresholds` and `downstream_targets` with travel times in minutes) and `settlements`.
+3. Restart the backend and simulator. Nothing else changes: the basin appears in the switcher, the landing page, the bulletin and the API.
+
+`backend/app/topology.py` validates every file at startup and in the tests: unique IDs across basins, coordinates inside Nepal, increasing thresholds, positive travel times, and downstream targets that exist.
+
+### API
+
+`GET /api/basins/{id}/flow` returns modelled river discharge (GloFAS) near each station as a real-world reference, and `GET /api/basins/{id}/weather` the rain outlook. `GET /api/basins` lists basins with station, settlement and open-alert counts. `nodes`, `alerts`, `settlements`, `incidents`, `stats`, `analytics/summary` and `network/topology` accept `?basin=<id>`. Alerts are routed only within their own basin.
+
+## Free resources used
+
+Everything runs on free tools and services, with no API key or paid plan required:
+
+| Need | Resource |
+|---|---|
+| Database | SQLite file inside the project (PostgreSQL optional) |
+| MQTT broker | HiveMQ public broker, protected by a private random topic prefix |
+| Map tiles | OpenStreetMap (follow its tile usage policy; for heavy traffic use a tile host or your own server) |
+| Rain forecast | Open-Meteo (free, no key, CC BY 4.0, attribution shown in the UI), cached 30 minutes |
+| River flow reference | Open-Meteo Flood API (GloFAS model, free, no key, CC BY 4.0), cached 3 hours, `GET /api/basins/{id}/flow` |
+| River shapes | OpenStreetMap waterways, traced once and stored in the basin files (ODbL, attribution in the map footer) |
+| Alerts to the public | Email through any SMTP server, for example a free Gmail app password (`EMAIL_PROVIDER=smtp`, `SMTP_*`) |
+| Fonts | Fraunces, IBM Plex Sans, IBM Plex Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
+
+SMS and Telegram are intentionally not used: email is the only alert channel.
+
+## Design system
+
+Tokens live in `frontend/src/styles/tokens.css` (palette "Survey Sheet": warm survey paper, ink-blue rivers, a vermilion accent, hairline rules and hard-offset shadows; dark mode is "night survey"). Typography is Fraunces for display, IBM Plex Sans for the interface, IBM Plex Mono for readings and labels, and Noto Sans Devanagari for Nepali. All fonts are free and self-hosted. The landing page adds a procedural 3D valley (three.js) with a flood wave moving down the river.
 ## Architecture
 
 ```text
@@ -77,13 +130,13 @@ The system is designed for a viva/demo deployment, but the boundaries between th
                     | users, history, incidents   |
                     +-----------------------------+
 
-Shared river_topology.json supplies station coordinates,
+Basin files in shared/basins/ supply station coordinates,
 thresholds, directed edges, settlement metadata, and travel times.
 ```
 
 ### End-to-end processing
 
-1. `sensor-sim/simulator.py` loads `shared/river_topology.json` and publishes one telemetry message per station every five seconds.
+1. `sensor-sim/simulator.py` loads every file in `shared/basins/` and publishes one telemetry message per station every five seconds.
 2. `backend/app/mqtt_client.py` subscribes to `nepal/trishuli/sensors/#`.
 3. The ingestion service validates the payload, finds the station, computes anomaly metrics, and writes a `SensorReadingModel`.
 4. The station's latest risk and timestamp become visible through `/api/nodes`.
@@ -100,7 +153,7 @@ thresholds, directed edges, settlement metadata, and travel times.
 ├── .env.example                       # Environment variable template
 ├── start_all.ps1                      # Windows launcher for all services
 ├── shared/
-│   └── river_topology.json            # Stations, settlements, edges, thresholds
+│   └── basins/*.json                  # One file per river basin: stations, settlements, edges, thresholds
 ├── sensor-sim/
 │   ├── simulator.py                   # Six-node MQTT simulator
 │   └── trigger_spike.py               # Command-line spike publisher
@@ -117,7 +170,7 @@ thresholds, directed edges, settlement metadata, and travel times.
 │   │   ├── anomaly_engine.py          # EMA, HSI, thresholds, classification
 │   │   ├── graph_engine.py            # Directed graph and Dijkstra routing
 │   │   ├── dispatcher.py              # WebSocket fan-out and notification log
-│   │   ├── notifier.py                # Simulated SMS/email notification layer
+│   │   ├── notifier.py                # Email notification layer (SMTP, delivery log)
 │   │   └── seed_data.py               # Station and settlement initialization
 │   └── tests/                         # Backend unit and integration tests
 ├── frontend/
@@ -171,7 +224,7 @@ The ingestion worker:
 
 ### Dispatcher and notifier
 
-The dispatcher maintains active WebSocket connections and broadcasts JSON events. The notifier keeps a simulated notification log for SMS/email integration points; the default providers are deliberately non-delivery simulation providers.
+The dispatcher maintains active WebSocket connections and broadcasts JSON events. The notifier emails registered contacts through SMTP and keeps a delivery log; the default `simulated` provider logs without sending.
 
 ## Telemetry and event contracts
 
@@ -319,7 +372,7 @@ rules; the dashboard displays the matching reason beside the selected station.
 
 ## Graph routing and alert lifecycle
 
-`shared/river_topology.json` defines a directed weighted graph containing sensor stations, settlement targets, and hydraulic travel-time edges. Dijkstra's algorithm calculates the shortest downstream travel time from an affected source to each settlement:
+Each file in `shared/basins/` defines a directed weighted graph containing sensor stations, settlement targets, and hydraulic travel-time edges. Dijkstra's algorithm calculates the shortest downstream travel time from an affected source to each settlement:
 
 ```text
 ETA(settlement) = current_time + shortest_travel_time(source, settlement)
@@ -475,11 +528,15 @@ Copy `.env.example` to `.env` at the repository root or configure environment va
 | `RATE_OF_CHANGE_WEIGHT` | `0.40` | HSI rate component weight |
 | `WATER_DEV_WEIGHT` | `0.45` | HSI water deviation weight |
 | `SOIL_MOISTURE_WEIGHT` | `0.15` | HSI soil component weight |
-| `JWT_SECRET` | `change-me-in-production` | JWT signing secret; replace in deployment |
+| `JWT_SECRET` | random per process | JWT signing secret; set a long random value in `.env` |
+| `MQTT_USERNAME` / `MQTT_PASSWORD` | empty | Broker credentials (use on a private broker) |
+| `STALE_AFTER_SECONDS` | `60` | Silence before a station is shown OFFLINE |
+| `ALLOWED_ORIGINS` | localhost dev ports | Comma-separated browser origins allowed by CORS |
+| `DEMO_CONTROLS_ENABLED` | `true` | Enables the spike / reset demo endpoints |
+| `EMAIL_PROVIDER`, `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM/STARTTLS` | `simulated` | Set provider to `smtp` to send real email |
 | `JWT_EXPIRE_MINUTES` | `480` | Token lifetime |
 | `DEFAULT_OPERATOR_USERNAME` | `operator` | Seed operator username |
-| `DEFAULT_OPERATOR_PASSWORD` | `operator` | Seed operator password; replace in deployment |
-| `SMS_PROVIDER` | `simulated` | Notification provider mode |
+| `DEFAULT_OPERATOR_PASSWORD` | empty | Operator password. Empty = a random one-time password is printed on first start |
 | `EMAIL_PROVIDER` | `simulated` | Notification provider mode |
 
 The frontend development client currently targets `http://127.0.0.1:8000/api` and `ws://127.0.0.1:8000/ws/stream`. Change these service URLs in `frontend/src/services/api.js` and the WebSocket hook when deploying behind a different origin. Local/demo operator authentication is disabled so the Demo control can be used directly; the login endpoint remains only as a backwards-compatible API surface.
@@ -509,7 +566,7 @@ The launcher opens:
 - Simulator publisher
 - Vite dashboard at `http://127.0.0.1:5173`
 
-The dashboard automatically reconnects its WebSocket with exponential backoff (capped at 30 seconds) and sends a heartbeat `ping` every 15 seconds. The backend answers with `pong`. The Demo button publishes an `INJECT_SPIKE` command without a login prompt; watch the selected station's water level, rate, HSI, risk badge, and map popup for the resulting live values.
+The dashboard automatically reconnects its WebSocket with exponential backoff (capped at 30 seconds) and sends a heartbeat `ping` every 15 seconds. The backend answers with `pong`. The Demo button (operator sign-in required) publishes an `INJECT_SPIKE` command; watch the selected station's water level, rate, HSI, risk badge, and map popup for the resulting live values.
 
 ### Start services manually
 
@@ -569,48 +626,42 @@ The dashboard and API require an operator JWT for spike and reset operations. If
 
 ## Authentication and authorization
 
-- Passwords are stored as PBKDF2-HMAC-SHA256 hashes with per-password salts.
+- Passwords are stored as PBKDF2-HMAC-SHA256 hashes (200,000 rounds) with random per-password salts. Login is rate-limited (8 attempts per minute per client and username).
 - Tokens are signed locally as HS256-style JWTs.
-- `viewer` is the default read-only role.
-- `operator` is required for state-changing alert, configuration, user, and simulator actions.
-- The default development credentials are `operator` / `operator`; change them before any shared or hosted deployment. The dashboard now reflects signed-out, viewer, and operator sessions in the sidebar and user chip, with sign-out clearing the local session.
-- Replace `JWT_SECRET=change-me-in-production` in every non-local environment.
-- CORS is currently permissive for local development and must be restricted to known frontend origins in production.
+- Reads are public: anyone can open the dashboard, the bulletin and read stations, alerts, incidents and settlements without signing in.
+- `operator` is required for every state-changing action: acknowledging/resolving alerts, editing thresholds and settlements, managing contacts, viewing the notification log, and the Demo spike/reset controls. `viewer` accounts are read-only; they can export CSV.
+- An anonymous request to a protected endpoint returns `401`; a viewer returns `403`.
+- The operator account comes from `DEFAULT_OPERATOR_USERNAME` / `DEFAULT_OPERATOR_PASSWORD` in `.env` and is re-synced on every start. If the password is empty the first start generates a random one-time password and prints it in the backend console. There is no default password.
+- `JWT_SECRET` must be set in `.env`. If it is empty a random per-process secret is used and sessions end on restart.
+- CORS is limited to `ALLOWED_ORIGINS`. The API binds to `127.0.0.1` by default (`API_HOST=0.0.0.0` to expose it).
+- Set `DEMO_CONTROLS_ENABLED=false` on a real deployment to disable the spike/reset endpoints.
 
 ## Design system and motion
 
-The frontend design system is centralized in `frontend/src/index.css`.
+The frontend design system is centralized in `frontend/src/styles/tokens.css`.
 
 ### Typography
 
-- `Space Grotesk` weights 500, 600, and 700 for headings and navigation.
-- `DM Sans` weights 400, 500, and 600 for interface text.
-- `JetBrains Mono` weights 400 and 600 for numbers, IDs, metrics, and timestamps.
+- `Fraunces` (serif) weights 600 and 800 for headings and numbers.
+- `IBM Plex Sans` weights 400, 500 and 600 for interface text.
+- `IBM Plex Mono` weights 400 and 600 for readings, IDs and labels.
+- `Noto Sans Devanagari` for Nepali.
 - Numeric values use tabular numerals.
 
 ### Palette
 
-```css
---surface-0:#08141b
---surface-1:#0d2028
---surface-2:#122b35
---surface-3:#183743
---border:#2a4a55
---text-1:#edf7f6
---text-2:#b6c8ca
---text-3:#7e999e
---brand:#62d6d0
---brand-hover:#8be6df
---brand-muted:#2f7779
---normal:#42c98a
---watch:#d8b34b
---warning:#e68a52
---critical:#ed6b72
---stale:#9aa8ae
-```
+Light "paper" is the default and dark "night survey" is `data-theme="dark"`. Both are checked against WCAG AA by `npm run check:contrast`.
+
+| Token | Paper | Night |
+|---|---|---|
+| `--surface-0` / `--surface-1` | `#ece4d2` / `#f8f3e6` | `#0c1418` / `#121d23` |
+| `--text-1` | `#15222a` | `#f0ead9` |
+| `--brand` (river ink) | `#1b4f7b` | `#82b8e3` |
+| `--accent` (vermilion) | `#b82e14` | `#ff7b5a` |
+| `--normal` / `--watch` / `--warning` / `--critical` | `#1c6b3d` / `#85600a` / `#a64709` / `#b3122a` | `#5fd48f` / `#f0c23a` / `#ff9650` / `#ff6b7d` |
 
 Risk colors are restricted to a status dot, adjacent label, and 2px left-edge accent. They are not used as full card fills or pill badges.
-The interface also provides a persisted light theme and follows the system preference when no choice has been saved.
+The interface opens in paper and remembers the reader's choice of night survey.
 
 ### Layout and interaction rules
 
@@ -706,7 +757,7 @@ npm run lint
 
 ### Demo does not update telemetry
 
-Confirm the backend is listening on port `8000`, the simulator is connected to the configured MQTT broker, and the browser is using `ws://127.0.0.1:8000/ws/stream`. The Demo button publishes directly without a login prompt. Then watch the selected station for updated water, rate, HSI, risk, and popup values.
+Confirm the backend is listening on port `8000`, the simulator is connected to the configured MQTT broker, and the browser is using `ws://127.0.0.1:8000/ws/stream`. The Demo button needs an operator sign-in first. Then watch the selected station for updated water, rate, HSI, risk, and popup values.
 
 ### Alerts appear duplicated
 
@@ -740,7 +791,7 @@ This repository is configured for local/demo operation. Before production use:
 - Restrict CORS to the deployed dashboard origin.
 - Serve the API and dashboard over HTTPS/WSS.
 - Put the API behind a reverse proxy with request limits and structured logs.
-- Replace simulated SMS/email providers with audited delivery integrations.
+- Replace the simulated email provider with an audited, rate-limited delivery service.
 - Add database indexes or constraints for open-alert pair uniqueness if concurrent workers are introduced.
 - Add a durable job/queue strategy if alert notifications must survive process restarts.
 - Monitor MQTT connection health, WebSocket clients, ingestion latency, database growth, and alert transitions.
@@ -750,3 +801,6 @@ This repository is configured for local/demo operation. Before production use:
 ## License and academic use
 
 This is an academic final-year project implementation for demonstrating distributed telemetry ingestion, explainable hydrological risk analysis, graph routing, and live operator UX. Review dependencies and external broker terms before redistribution or deployment.
+
+## Live email demo
+`python backend/tests/demo_email_live.py` starts a throw-away SMTP receiver, registers an English and a Nepali contact for every settlement, injects a spike in every basin and checks that each alerted settlement's contacts actually received the email, and nobody else did. Set `EMAIL_PROVIDER=smtp`, `SMTP_HOST=127.0.0.1`, `SMTP_PORT=2526`, `SMTP_STARTTLS=false` and `SMTP_FROM=alerts@himdhara.local` in `.env` first (it needs `pip install aiosmtpd`).

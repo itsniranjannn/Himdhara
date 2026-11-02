@@ -5,7 +5,7 @@ from app.graph_engine import GraphAlertPropagationEngine
 def test_graph_propagation_from_upstream_node():
     """Verify Dijkstra traversal from Langtang Upper Catchment correctly routes downstream to settlements in ETA order."""
     topology_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json")
+        os.path.join(os.path.dirname(__file__), "..", "..", "shared", "basins", "trishuli.json")
     )
     engine = GraphAlertPropagationEngine(topology_path)
 
@@ -31,7 +31,7 @@ def test_graph_propagation_from_upstream_node():
 def test_graph_propagation_normal_produces_no_alerts():
     """NORMAL risk should not generate emergency alerts."""
     topology_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json")
+        os.path.join(os.path.dirname(__file__), "..", "..", "shared", "basins", "trishuli.json")
     )
     engine = GraphAlertPropagationEngine(topology_path)
     alerts = engine.propagate_alert("NODE_LANGTANG_01", "NORMAL")

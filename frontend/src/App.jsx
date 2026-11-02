@@ -1,232 +1,279 @@
-import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Activity, Bell, CheckCircle2, ChevronDown, CircleAlert, Clock3,
-  History, LayoutGrid, MapPin, Menu, ShieldCheck, SlidersHorizontal,
-  Users, X, Sun, Moon
-} from "lucide-react";
-import RiverMap from "./components/RiverMap";
-import Logo from "./components/Logo";
-import { fetchAlerts, fetchIncidents, fetchNodeReadings, fetchNodes, fetchSettlements, fetchStats, fetchTopology, login, updateSettlement, updateThresholds, exportIncidents } from "./services/api";
+import React, { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import Shell from "./components/Shell";
+import Modal from "./components/Modal";
+import { Field } from "./components/ui";
+import { brand } from "./config/brand";
+import { useNow } from "./hooks/useNow";
 import { useWebSocket } from "./hooks/useWebSocket";
-import { triggerSpike } from "./services/api";
+import { DEFAULT_STALE_SECONDS, OPEN_STATUSES, RISK_RANK, riskOf } from "./lib/format";
+import AlertsPage from "./pages/AlertsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import BulletinPage from "./pages/BulletinPage";
+import ConfigurationPage from "./pages/ConfigurationPage";
+import IncidentsPage from "./pages/IncidentsPage";
+import MonitorPage from "./pages/MonitorPage";
+import { WS_URL, fetchAlerts, fetchBasins, fetchForecast, fetchHealth, fetchIncidents, fetchNodeReadings, fetchNodes, fetchSettlements, fetchStats, fetchTopology, fetchWeather, login, resetSimulation, triggerSpike } from "./services/api";
 
-const fallbackNodes = [
-  { node_id: "NODE_LANGTANG_01", name: "Langtang Glacier Catchment", lat: 28.22, lng: 85.61, current_risk: "NORMAL" },
-  { node_id: "NODE_BHOTKOSHI_02", name: "Upper Bhotekoshi Gorge", lat: 28.08, lng: 85.89, current_risk: "NORMAL" },
-  { node_id: "NODE_SYAPRUBESI_03", name: "Syaprubesi River Confluence", lat: 28.15, lng: 85.36, current_risk: "NORMAL" },
-  { node_id: "NODE_MAILUNG_04", name: "Mailung Landslide Sector", lat: 28.03, lng: 85.31, current_risk: "NORMAL" },
-  { node_id: "NODE_BETRAWATI_05", name: "Betrawati Bridge Gauge", lat: 27.98, lng: 85.19, current_risk: "NORMAL" },
-  { node_id: "NODE_TRISHULI_06", name: "Trishuli Hydropower Headworks", lat: 27.87, lng: 85.17, current_risk: "NORMAL" }
-];
-const legacyRoutes = { "/monitor": "/app/monitor", "/alerts": "/app/alerts", "/incidents": "/app/incidents", "/configuration": "/app/configuration", "/public": "/bulletin" };
 const LandingPage = React.lazy(() => import("./components/LandingPage"));
+const ROUTES = ["/", "/app/monitor", "/app/alerts", "/app/analytics", "/app/incidents", "/app/configuration", "/bulletin"];
+const LEGACY = { "/monitor": "/app/monitor", "/alerts": "/app/alerts", "/incidents": "/app/incidents", "/configuration": "/app/configuration", "/public": "/bulletin", "/app": "/app/monitor" };
+const HISTORY_LIMIT = 120;
+const TITLES = { "/": "River early warning for Nepal", "/bulletin": "Public bulletin", "/app/monitor": "Monitor", "/app/alerts": "Alerts", "/app/analytics": "Analytics", "/app/incidents": "Incidents", "/app/configuration": "Configuration" };
+const BASIN_KEY = "himdhara-basin";
 
-const names = ["Betrawati Market & Riverbank Settlement", "Syaprubesi Bazaar", "Trishuli Bazaar & Hydropower Colony", "Dhunche Town & District Hospital"];
-const sampleAlerts = names.map((name, index) => ({
-  alert_id: `sample-${index}`,
-  affected_settlement_name: name,
-  source_node_name: fallbackNodes[index % fallbackNodes.length].name,
-  eta_minutes: [4, 5, 6, 12][index],
-  population_at_risk: [8500, 4500, 26000, 12500][index],
-  evacuation_zone: index % 2 ? "Monastery Ridge Evacuation Point" : "Betrawati Higher Secondary Grounds",
-  risk_level: index === 3 ? "CRITICAL" : "WARNING",
-  acknowledged: true
-}));
+const pathFromLocation = () => {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  return LEGACY[path] || (ROUTES.includes(path) ? path : "/");
+};
+const readSession = () => { try { return JSON.parse(localStorage.getItem("himdhara-session")) || null; } catch { return null; } };
+const readTheme = () => {
+  try { const saved = localStorage.getItem("himdhara-theme"); if (saved) return saved; } catch { /* storage unavailable */ }
+  return "light";
+};
+const readBasin = () => {
+  const fromUrl = new URLSearchParams(window.location.search).get("basin");
+  if (fromUrl) return fromUrl;
+  try { return localStorage.getItem(BASIN_KEY) || ""; } catch { return ""; }
+};
 
-function riskOf(node, live) {
-  return live?.[node.node_id]?.risk_level || node.latest_reading?.risk_level || node.current_risk || "NORMAL";
-}
-
-function Shell({ page, setPage, children, onDemo, isConnected, activeAlertCount, session, onSignOut, onSignIn, theme, onToggleTheme }) {
-  const nav = [
-    ["/app/monitor", "Monitor", LayoutGrid],
-    ["/app/alerts", "Alerts", Bell],
-    ["/app/incidents", "Incidents", History],
-    ["/app/configuration", "Configuration", SlidersHorizontal],
-    ["/bulletin", "Public bulletin", MapPin]
-  ];
-  return <div className="shell">
-    <aside className="sidebar">
-      <div className="sidebar-brand"><Logo variant="full" /></div>
-      <nav>{nav.map(([id, label, Icon]) => <button className={page === id ? "nav-item active" : "nav-item"} onClick={() => setPage(id)} key={id}><Icon size={16} /><span>{label}</span></button>)}</nav>
-      <div className="sidebar-footer"><span className={`status-dot ${session?.role === "operator" ? "operator" : ""}`} />{session ? `${session.role === "operator" ? "Operator" : "Viewer"} monitoring` : "Signed out"}</div>
-    </aside>
-    <main className="content">
-      <header className="topbar"><button className="mobile-menu" aria-label="Open navigation"><Menu size={18} /></button><h1>{(page === "/bulletin" ? "Public bulletin" : page.slice(5).replace("-", " ")).replace(/^\w/, (letter) => letter.toUpperCase())}</h1><div className="top-status"><span><i className="connected-dot" /> MQTT connected</span><span><i className={isConnected ? "connected-dot" : ""} /> WebSocket {isConnected ? "live" : "reconnecting"}</span><span>Last reading 0s ago</span><Bell size={14} /><span>{activeAlertCount} active</span><button className="demo-button" onClick={onToggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}</button><button className="demo-button" onClick={onDemo}>Demo</button>{session ? <span className="user-chip"><span className="avatar">{session.username[0].toUpperCase()}</span><strong>{session.username}</strong><small>{session.role}</small><button className="signout-button" onClick={onSignOut}>Sign out</button></span> : <button className="demo-button" onClick={onSignIn}>Sign in</button>}</div></header>
-      <div key={page} className="route-transition">{children}</div>
-    </main>
-  </div>;
-}
-
-function Stat({ value, label }) {
-  return <div className="stat"><strong>{value}</strong><span>{label}</span></div>;
-}
-
-function MiniLine({ index = 0 }) {
-  const paths = ["2,22 12,13 24,16 35,23 46,8 57,17", "2,18 14,20 25,10 36,8 47,14 57,21", "2,9 13,12 24,18 35,19 46,21 57,26", "2,17 12,9 23,16 34,10 45,22 57,15", "2,5 13,10 24,17 35,11 46,12 57,6", "2,8 13,14 24,21 35,13 46,18 57,17"];
-  return <svg className="mini-line" viewBox="0 0 60 30" preserveAspectRatio="none"><polyline points={paths[index % paths.length]} /></svg>;
-}
-
-function StationChart({ readings, metric, thresholds = {} }) {
-  const [showThresholds, setShowThresholds] = useState(true);
-  const field = metric === "rate" ? "rate_of_change_cm_min" : metric === "hsi" ? "hsi_score" : "water_level_cm";
-  const values = readings.length ? readings.map((r) => Number(r[field] || 0)) : metric === "rate" ? [2.4, 2.1, 2.8, 3.1, 2.7, 3.4] : metric === "hsi" ? [.42, .48, .51, .57, .61, .6] : [95, 96, 95.5, 96, 95.7, 96.3, 96.1, 96.25];
-  const thresholdValues = metric === "water" ? [thresholds.water_level_watch, thresholds.water_level_warning, thresholds.water_level_critical].filter(Number.isFinite) : [];
-  const dataMin = Math.min(...values);
-  const dataMax = Math.max(...values);
-  const padding = Math.max((dataMax - dataMin) * 0.12, metric === "rate" ? 1 : 1);
-  const min = metric === "rate" ? Math.min(dataMin - padding, 0) : Math.max(0, dataMin - padding);
-  const max = Math.max(dataMax + padding, metric === "rate" ? padding : 1);
-  const scale = (value) => 100 - ((value - min) / Math.max(max - min, 1)) * 100;
-  const points = values.map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 100},${scale(value)}`).join(" ");
-  const formatAxis = (value) => Math.abs(value) < 10 && value % 1 !== 0 ? value.toFixed(1) : value.toFixed(0);
-  const visibleThresholds = showThresholds ? thresholdValues.filter((threshold) => threshold >= min - padding && threshold <= max + padding) : [];
-  const thresholdNames = ["WATCH", "WARNING", "CRITICAL"];
-  return <div className="chart"><div className="chart-controls"><label><input type="checkbox" checked={showThresholds} onChange={(event) => setShowThresholds(event.target.checked)} /> Show thresholds</label></div><div className="chart-y"><span>{formatAxis(max)}</span><span>{formatAxis((max + min) / 2)}</span><span>{formatAxis(min)}</span></div><svg viewBox="0 0 100 100" preserveAspectRatio="none"><g className="chart-grid">{[25, 50, 75].map((y) => <line key={y} x1="0" y1={y} x2="100" y2={y} />)}{visibleThresholds.map((threshold) => { const index = thresholdValues.indexOf(threshold); return <g key={threshold}><line className={`threshold-line threshold-${index}`} x1="0" y1={scale(threshold)} x2="100" y2={scale(threshold)} /><text className={`threshold-label threshold-label-${index}`} x="99" y={scale(threshold) - 1}>{thresholdNames[index]}</text></g>; })}</g><polyline points={points} /></svg><div className="chart-x"><span>Recent</span><span>Latest</span></div></div>;
-}
-
-function DemoModal({ nodes, onClose, onTriggered }) {
-  const [targetNode, setTargetNode] = useState(nodes[0]?.node_id || "NODE_LANGTANG_01");
-  const [surge, setSurge] = useState(150);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      const result = await triggerSpike(targetNode, Number(surge));
-      setMessage(`Spike sent to ${result.target_node}. Watch live telemetry for the risk transition.`);
-      onTriggered(targetNode);
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setBusy(false);
-    }
-
-  }
-
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <form className="demo-modal" onSubmit={submit}><div className="modal-heading"><div><h2>Run demo spike</h2><p>Demo controls are enabled for this local installation.</p></div><button type="button" onClick={onClose} aria-label="Close demo dialog"><X size={17} /></button></div>
-      <label>Target station<select value={targetNode} onChange={(event) => setTargetNode(event.target.value)}>{nodes.map((node) => <option key={node.node_id} value={node.node_id}>{node.name}</option>)}</select></label>
-      <label>Water surge <output>+{surge} cm</output><input type="range" min="80" max="220" step="10" value={surge} onChange={(event) => setSurge(event.target.value)} /></label>
-      {message && <p className="demo-message">{message}</p>}<button className="demo-submit" disabled={busy}>{busy ? "Sending..." : "Send flood spike"}</button>
-    </form>
-  </div>;
-}
-
-function SignInModal({ onClose, onSignedIn }) {
-  const [username, setUsername] = useState("operator");
-  const [password, setPassword] = useState("operator");
+function SignInModal({ reason, onClose, onSignedIn }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(event) {
     event.preventDefault();
+    const form = new FormData(event.currentTarget);
     setBusy(true);
     setError("");
     try {
-      const session = await login(username, password);
-      localStorage.setItem("trishuli-session", JSON.stringify(session));
+      const session = await login(form.get("username"), form.get("password"));
+      localStorage.setItem("himdhara-session", JSON.stringify(session));
       onSignedIn(session);
       onClose();
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
+    } catch (failure) {
+      setError(failure.message);
       setBusy(false);
     }
   }
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-    <form className="demo-modal" onSubmit={submit}><div className="modal-heading"><div><h2>Sign in</h2><p>Use an operator or viewer account for this demo.</p></div><button type="button" onClick={onClose} aria-label="Close sign-in dialog"><X size={17} /></button></div>
-      <label>Username<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
-      <label>Password<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" /></label>
-      {error && <p className="form-error">{error}</p>}
-      <button className="demo-submit" disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>
-    </form>
-  </div>;
+  return <Modal title="Sign in" description={reason || "Operators can acknowledge alerts, edit settings and run demos."} onClose={onClose} onSubmit={submit}>
+    <Field label="Username"><input name="username" autoComplete="username" required /></Field>
+    <Field label="Password"><input name="password" type="password" autoComplete="current-password" required /></Field>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <button className="demo-submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+  </Modal>;
 }
 
-function MonitorPage({ nodes, topology, live, selectedNode, setSelectedNode, readings, stats, alerts, theme }) {
-  const [metric, setMetric] = useState("water");
-  const station = selectedNode || nodes[0] || fallbackNodes[4];
-  const current = live[station.node_id] || station.latest_reading || {};
-  const active = alerts.filter((alert) => !alert.acknowledged);
-  return <div className="page monitor-page">
-    <div className="stats-grid"><Stat value={nodes.filter((n) => riskOf(n, live) === "CRITICAL").length} label="Critical" /><Stat value={nodes.filter((n) => riskOf(n, live) === "WARNING").length} label="Warning" /><Stat value={active.length} label="Active routes" /><Stat value={(stats?.total_readings || 23838).toLocaleString()} label="Readings" /></div>
-    <div className="monitor-grid">
-      <section className="panel map-panel"><div className="panel-title-row"><h2>Station network</h2><span>Select a marker or station row</span></div><RiverMap theme={theme} nodes={nodes} settlements={topology?.settlements || []} topology={topology} selectedNodeId={station.node_id} onSelectNode={(id) => setSelectedNode(nodes.find((node) => node.node_id === id) || station)} latestTelemetryMap={live} /></section>
-      <section className="panel settlement-panel"><div className="panel-title-row"><h2>Settlement alerts</h2><span>{active.length}</span></div>{active.length ? active.map((alert) => <div className="small-alert" key={alert.alert_id}><CircleAlert size={15} /><span>{alert.affected_settlement_name}</span></div>) : <div className="empty-state"><CheckCircle2 size={18} /><span>No active alerts</span></div>}<p className="panel-foot"><i /> Queue sorted by flood-wave arrival time</p></section>
+function DemoModal({ nodes, defaultNode, onClose, onTriggered, onReset }) {
+  const [targetNode, setTargetNode] = useState(defaultNode || nodes[0]?.node_id || "");
+  const [surge, setSurge] = useState(150);
+  const [state, setState] = useState({ busy: false, text: "", error: false });
+  async function run(action, success) {
+    setState({ busy: true, text: "", error: false });
+    try { await action(); setState({ busy: false, text: success, error: false }); } catch (failure) { setState({ busy: false, text: failure.message, error: true }); }
+  }
+  return <Modal title="Run demo spike" description="Simulates a flash flood on one station so you can watch detection, routing and alerts react." onClose={onClose}
+    onSubmit={(event) => { event.preventDefault(); run(async () => { await triggerSpike(targetNode, surge); onTriggered(targetNode); }, "Spike sent. Watch the station turn WARNING then CRITICAL within a few readings."); }}>
+    <Field label="Target station"><select value={targetNode} onChange={(event) => setTargetNode(event.target.value)}>{nodes.map((node) => <option key={node.node_id} value={node.node_id}>{node.name}</option>)}</select></Field>
+    <Field label={<>Water surge <output>+{surge} cm</output></>}><input type="range" min="80" max="220" step="10" value={surge} onChange={(event) => setSurge(Number(event.target.value))} /></Field>
+    {state.text && <p className={state.error ? "form-error" : "demo-message"} role={state.error ? "alert" : "status"}>{state.text}</p>}
+    <div className="modal-actions">
+      <button className="demo-submit" disabled={state.busy}>{state.busy ? "Sending…" : "Send flood spike"}</button>
+      <button type="button" className="demo-button" disabled={state.busy} onClick={() => run(async () => { await resetSimulation(); onReset(); }, "Simulation reset. All stations are back to baseline and open alerts are closed.")}>Reset simulation</button>
     </div>
-    <section className="panel telemetry-panel"><div className="panel-title-row"><h2><Activity size={15} /> {station.name}</h2><span className={`risk-label ${riskOf(station, live)}`}><i /> {riskOf(station, live)}</span></div><div className="tabs">{[["water", "Water"], ["rate", "Rate"], ["hsi", "HSI"]].map(([value, label]) => <button key={value} className={metric === value ? "selected" : ""} onClick={() => setMetric(value)}>{label}</button>)}</div><div className="telemetry-meta"><span>Water <b>{current.water_level_cm !== undefined ? Number(current.water_level_cm).toFixed(2) : "96.25"} cm</b></span><span>Rate <b>{current.rate_of_change_cm_min !== undefined ? Number(current.rate_of_change_cm_min).toFixed(2) : "2.34"} cm/min</b></span><span>HSI <b>{current.hsi_score !== undefined ? Number(current.hsi_score).toFixed(2) : "0.60"}</b></span><span>Components <b>L {current.s_level ?? "0.43"} · R {current.s_rate ?? "0.19"} · S {current.s_soil ?? "0.08"}</b></span></div><p className="risk-reason">{current.reason || "NORMAL: HSI below 1.2 and station thresholds are not crossed."}</p><StationChart readings={readings} metric={metric} thresholds={station.thresholds} /></section>
-    <section className="panel station-panel"><div className="panel-title-row"><h2>Station status</h2><span>{nodes.length} stations</span></div>{nodes.map((node, index) => { const risk = riskOf(node, live); const level = live[node.node_id]?.water_level_cm ?? node.latest_reading?.water_level_cm ?? ["46.07", "66.37", "85.08", "96.25", "65.86", "96.73"][index]; return <button className={`station-row ${node.node_id === station.node_id ? "selected" : ""} ${risk}`} key={node.node_id} onClick={() => setSelectedNode(node)}><span className="station-name">{risk === "CRITICAL" ? <CircleAlert size={14} /> : <CheckCircle2 size={14} />}{node.name}</span><span className={`risk-label ${risk}`}><i /> {risk}</span><b>{level === "—" ? level : Number(level).toFixed(2)} cm</b><small>3s ago</small><MiniLine index={index} /></button>; })}</section>
-    <details className="audit"><summary><Activity size={14} /> Algorithm audit <ChevronDown size={15} /></summary></details>
-  </div>;
-}
-
-function AlertsPage({ alerts }) {
-  const items = alerts.length ? alerts : sampleAlerts;
-  const active = items.filter((alert) => ["ACTIVE", "ACKNOWLEDGED"].includes(alert.status) || (!alert.status && !alert.acknowledged));
-  const resolved = items.filter((alert) => alert.status === "RESOLVED" || alert.acknowledged);
-  return <div className="page alerts-page"><h2>Alerts</h2><p className="page-subtitle">Acknowledge first, then track every route through resolution.</p><div className="alert-tabs"><span>Active&nbsp; {active.filter((alert) => alert.status === "ACTIVE" || !alert.status).length}</span><span>Acknowledged&nbsp; {active.filter((alert) => alert.status === "ACKNOWLEDGED").length}</span><span className="current">Resolved&nbsp; {resolved.length}</span><span>All&nbsp; {items.length}</span><span>Notification log</span></div><div className="lifecycle"><div className="panel-title-row"><h3>Alert lifecycle</h3><span>{items.length}</span></div>{items.map((alert, index) => { const isResolved = alert.status === "RESOLVED" || alert.acknowledged;   const created = alert.created_at ? formatNpt(alert.created_at) : "—"; const resolvedAt = alert.resolved_at ? formatNpt(alert.resolved_at) : "Open"; return <div className="lifecycle-row" key={`${alert.alert_id}-${index}`}><span className={`alert-rail ${alert.risk_level}`}><CircleAlert size={13} /></span><div className="alert-main"><strong>{alert.affected_settlement_name}</strong><span>Source: {alert.source_node_name} · ETA&nbsp; <b>{alert.eta_minutes} min</b></span><small><Users size={13} /> {Number(alert.population_at_risk || 0).toLocaleString()} people <MapPin size={13} /> {alert.evacuation_zone}</small><small>Created {created} · Resolved {resolvedAt}</small></div><div className="resolved"><i /> {isResolved ? "RESOLVED" : alert.status || "ACTIVE"}</div><button className="row-menu" aria-label="Alert details"><Clock3 size={14} /><ChevronDown size={14} /></button></div>; })}</div></div>;
-}
-
-function formatNpt(value) { return value ? `${new Date(value).toLocaleString("en-NP", { timeZone: "Asia/Kathmandu", hour12: false, dateStyle: "medium", timeStyle: "medium" })} NPT` : "—"; }
-function IncidentsPage({ incidents }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30000); return () => window.clearInterval(timer); }, []);
-  return <div className="page alerts-page"><div className="page-heading-row"><div><h2>Incidents</h2><p className="page-subtitle">Recovered warning and critical periods from the live risk engine.</p></div><button className="demo-submit" onClick={() => exportIncidents()}>Export CSV</button></div><div className="lifecycle panel incident-list">{incidents.length ? incidents.map((incident) => { const durationMs = incident.recovered_at ? new Date(incident.recovered_at) - new Date(incident.started_at) : now - new Date(incident.started_at); const duration = `${Math.max(0, Math.round(durationMs / 60000))} min`; const shortId = incident.incident_id?.split("-").slice(-2).join("-") || incident.incident_id; return <div className="lifecycle-row" key={incident.incident_id}><span className={`alert-rail ${incident.peak_risk}`}><CircleAlert size={13} /></span><div className="alert-main"><strong title={incident.incident_id}>{shortId}</strong><span>Source: {incident.source_node_id} · Peak&nbsp; <b>{incident.peak_risk}</b></span><small><Clock3 size={13} /> Started {formatNpt(incident.started_at)} · {incident.recovered_at ? `Recovered ${formatNpt(incident.recovered_at)}` : "Active"} · Duration {duration}</small></div></div>; }) : <div className="empty-state">No incidents recorded.</div>}</div></div>;
-}
-
-function ConfigurationPage({ nodes, settlements, setSettlements, session }) {
-  const [selected, setSelected] = useState(nodes[0]?.node_id || "");
-  const [message, setMessage] = useState("");
-  const node = nodes.find((item) => item.node_id === selected) || nodes[0];
-  const thresholds = node?.thresholds || { water_level_watch: 100, water_level_warning: 150, water_level_critical: 200 };
-  const save = async (event) => { event.preventDefault(); setMessage(""); const form = new FormData(event.currentTarget); const values = { water_level_watch: Number(form.get("watch")), water_level_warning: Number(form.get("warning")), water_level_critical: Number(form.get("critical")) }; if (!(values.water_level_watch < values.water_level_warning && values.water_level_warning < values.water_level_critical)) { setMessage("Thresholds must be strictly ordered: watch < warning < critical."); return; } try { await updateThresholds(selected, values); setMessage("Thresholds saved."); } catch (error) { setMessage(error.message); } };
-  const saveSettlement = async (event, settlement) => { event.preventDefault(); const form = new FormData(event.currentTarget); try { const updated = await updateSettlement(settlement.settlement_id, { name: form.get("name"), evacuation_zone: form.get("evacuation_zone"), population: Number(form.get("population")) }); setSettlements((current) => current.map((item) => item.settlement_id === updated.settlement_id ? updated : item)); setMessage("Settlement saved."); } catch (error) { setMessage(error.message); } };
-  const canEdit = session?.role === "operator";
-  return <div className="page alerts-page"><h2>Configuration</h2><p className="page-subtitle">Review station thresholds and settlement routing metadata.</p>{!canEdit && <p className="readonly-notice">Sign in as operator to edit.</p>}{message && <p className="form-error">{message}</p>}<div className="config-grid"><form className="panel config-form" onSubmit={save}><div className="panel-title-row"><h3>Station thresholds</h3><span>Live engine</span></div><label>Station<select disabled={!canEdit} value={selected} onChange={(event) => setSelected(event.target.value)}>{nodes.map((item) => <option key={item.node_id} value={item.node_id}>{item.name}</option>)}</select></label><label>Watch<input disabled={!canEdit} name="watch" type="number" defaultValue={thresholds.water_level_watch} /></label><label>Warning<input disabled={!canEdit} name="warning" type="number" defaultValue={thresholds.water_level_warning} /></label><label>Critical<input disabled={!canEdit} name="critical" type="number" defaultValue={thresholds.water_level_critical} /></label><button disabled={!canEdit} className="demo-submit">Save thresholds</button></form><section className="panel config-form"><div className="panel-title-row"><h3>Settlements</h3><span>{settlements.length}</span></div>{settlements.map((settlement) => <form className="settlement-edit" key={settlement.settlement_id} onSubmit={(event) => saveSettlement(event, settlement)}><label>Name<input disabled={!canEdit} name="name" defaultValue={settlement.name} /></label><label>Evacuation zone<input disabled={!canEdit} name="evacuation_zone" defaultValue={settlement.evacuation_zone || ""} /></label><label>Population<input disabled={!canEdit} name="population" type="number" min="0" defaultValue={settlement.population || 0} /></label><button disabled={!canEdit} className="row-menu">Save</button></form>)}</section></div></div>;
-}
-
-function PublicPage({ nodes, alerts, theme, onToggleTheme }) {
-  return <main className="public-standalone"><header className="public-header"><a href="/" onClick={(event) => { event.preventDefault(); window.history.pushState({}, "", "/"); window.dispatchEvent(new PopStateEvent("popstate")); }}><Logo variant="full" /></a><div><button className="demo-button" onClick={onToggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><a className="public-dashboard-link" href="/app/monitor">Operations dashboard</a></div></header><div className="public-shell"><section className="public-hero"><div><p className="eyebrow">PUBLIC BASIN BULLETIN · NPT</p><h1>Flood risk in your area</h1><p>Current conditions for the Trishuli and Bhotekoshi watersheds. Follow local instructions and move to higher ground if your settlement is under alert.</p></div><div className={`public-status ${alerts.length ? "active" : "clear"}`}><ShieldCheck size={22} /><strong>{alerts.length ? "Active alert in the basin" : "All monitored areas clear"}</strong><span>{alerts.length ? "Follow local responder directions and check your settlement guidance below." : "Continue normal activities and stay informed."}</span></div></section><section className="guidance"><h2>What to do</h2><p>Take essential medicines, documents, and water. Move to higher ground when instructed and follow local responder directions.</p></section><div className="public-grid"><section className="panel public-stations"><div className="panel-title-row"><h2>Station conditions</h2><span>Updated live · NPT</span></div>{nodes.map((node) => { const risk = node.latest_reading?.risk_level || node.current_risk || "NORMAL"; const plain = risk === "NORMAL" ? "Normal conditions" : risk === "STALE" ? "No recent reading" : `${risk[0]}${risk.slice(1).toLowerCase()} conditions`; return <div className="public-row" key={node.node_id}><div><strong>{node.name}</strong><small>{plain}</small></div><span className={`risk-label ${risk}`}><i /> {risk}</span></div>; })}</section><section className="panel public-guidance"><div className="panel-title-row"><h2>Settlement guidance</h2><span>{alerts.length} routes</span></div>{alerts.length ? alerts.map((alert) => <div className="public-alert" key={alert.alert_id}><strong>{alert.affected_settlement_name}</strong><span>Move to {alert.evacuation_zone || "the nearest elevated safe area"}.</span></div>) : <div className="empty-state"><ShieldCheck size={18} /><span>No settlements are currently under alert.</span></div>}</section></div></div></main>;
+  </Modal>;
 }
 
 export default function App() {
-  const requestedPath = window.location.pathname;
-  const initialPage = legacyRoutes[requestedPath] || (["/", "/app/monitor", "/app/alerts", "/app/incidents", "/app/configuration", "/bulletin"].includes(requestedPath) ? requestedPath : "/");
-  const [page, setPage] = useState(initialPage);
-  const [nodes, setNodes] = useState(fallbackNodes), [topology, setTopology] = useState(null), [alerts, setAlerts] = useState([]), [live, setLive] = useState({}), [stats, setStats] = useState(null), [selectedNode, setSelectedNode] = useState(fallbackNodes[4]), [readings, setReadings] = useState([]), [demoOpen, setDemoOpen] = useState(false), [signInOpen, setSignInOpen] = useState(false), [incidents, setIncidents] = useState([]), [settlements, setSettlements] = useState([]), [session, setSession] = useState(() => { try { return JSON.parse(localStorage.getItem("trishuli-session")) || null; } catch { return null; } }), [theme, setTheme] = useState(() => { const saved = localStorage.getItem("trishuli-theme"); return saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); });
-  useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("trishuli-theme", theme); }, [theme]);
-  useEffect(() => { if (legacyRoutes[requestedPath]) window.history.replaceState({}, "", page); }, [page, requestedPath]);
-  useEffect(() => { const routeTitle = page === "/" ? "Early warning for the basin" : page === "/bulletin" ? "Public bulletin" : page.slice(5).replace("-", " "); document.title = `${routeTitle.charAt(0).toUpperCase()}${routeTitle.slice(1)} | Trishuli Early Warning System`; }, [page]);
-  const selectedRef = useRef(selectedNode?.node_id);
-  useEffect(() => { selectedRef.current = selectedNode?.node_id; }, [selectedNode]);
-  useEffect(() => {
-    const expireSession = () => { setSession(null); setSignInOpen(true); };
-    window.addEventListener("trishuli-session-expired", expireSession);
-    return () => window.removeEventListener("trishuli-session-expired", expireSession);
+  const [page, setPage] = useState(pathFromLocation);
+  const [theme, setTheme] = useState(readTheme);
+  const [session, setSession] = useState(readSession);
+  const [signIn, setSignIn] = useState(null); // null | { reason }
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [basins, setBasins] = useState([]);
+  const [basinId, setBasinId] = useState(readBasin);
+  const [allNodes, setAllNodes] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [topologies, setTopologies] = useState({});
+  const [allAlerts, setAllAlerts] = useState([]);
+  const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const [allIncidents, setAllIncidents] = useState([]);
+  const [incidentsLoaded, setIncidentsLoaded] = useState(false);
+  const [allSettlements, setAllSettlements] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState("");
+  const [live, setLive] = useState({});
+  const [history, setHistory] = useState({});
+  const [forecastState, setForecastState] = useState({ id: null, data: null });
+  const [weatherState, setWeatherState] = useState({ id: null, data: null });
+  const [selectedByBasin, setSelectedByBasin] = useState({});
+  const now = useNow(1000);
+  const staleSeconds = health?.stale_after_seconds || DEFAULT_STALE_SECONDS;
+
+  // The active basin: the saved one if it still exists, otherwise the first configured basin.
+  const basin = useMemo(() => basins.find((item) => item.basin_id === basinId) || basins[0] || null, [basins, basinId]);
+  const activeBasinId = basin?.basin_id || null;
+  const nodes = useMemo(() => allNodes.filter((node) => node.basin_id === activeBasinId), [allNodes, activeBasinId]);
+  const alerts = useMemo(() => allAlerts.filter((alert) => alert.basin_id === activeBasinId), [allAlerts, activeBasinId]);
+  const incidents = useMemo(() => allIncidents.filter((item) => item.basin_id === activeBasinId), [allIncidents, activeBasinId]);
+  const settlements = useMemo(() => allSettlements.filter((item) => item.basin_id === activeBasinId), [allSettlements, activeBasinId]);
+  const topology = topologies[activeBasinId] || null;
+  const openAlerts = useMemo(() => alerts.filter((alert) => OPEN_STATUSES.includes(alert.status)), [alerts]);
+
+  // Selected station: remembered per basin, else the most urgent one (derived, never out of sync with the basin).
+  const selectedId = useMemo(() => {
+    const remembered = selectedByBasin[activeBasinId];
+    if (remembered && nodes.some((node) => node.node_id === remembered)) return remembered;
+    return [...nodes].sort((a, b) => RISK_RANK[riskOf(b, live, now, staleSeconds)] - RISK_RANK[riskOf(a, live, now, staleSeconds)])[0]?.node_id || null;
+    // `now` is intentionally excluded: re-sorting every second would move the selection under the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedByBasin, activeBasinId, nodes]);
+  const setSelectedId = useCallback((id) => setSelectedByBasin((current) => ({ ...current, [activeBasinId]: id })), [activeBasinId]);
+
+  const toggleTheme = useCallback(() => setTheme((current) => (current === "dark" ? "light" : "dark")), []);
+  const navigate = useCallback((path) => {
+    window.history.pushState({}, "", path);
+    window.scrollTo(0, 0);
+    startTransition(() => setPage(path));
   }, []);
-  useEffect(() => { Promise.allSettled([fetchNodes(), fetchTopology(), fetchAlerts(), fetchStats(), fetchIncidents(), fetchSettlements()]).then(([node, topo, alert, stat, incident, settlement]) => { if (node.status === "fulfilled" && node.value.length) { setNodes(node.value); setSelectedNode(node.value.find((item) => item.node_id === "NODE_BETRAWATI_05") || node.value[0]); } if (topo.status === "fulfilled") setTopology(topo.value); if (alert.status === "fulfilled") setAlerts(alert.value); if (stat.status === "fulfilled") setStats(stat.value); if (incident.status === "fulfilled") setIncidents(incident.value); if (settlement.status === "fulfilled") setSettlements(settlement.value); }); }, []);
-  const loadReadings = useCallback(async (id) => { if (!id) return; try { const result = await fetchNodeReadings(id, 60); if (selectedRef.current === id) startTransition(() => setReadings(result)); } catch (error) { console.error("Failed to load readings:", error); } }, []);
-  useEffect(() => { loadReadings(selectedNode?.node_id); }, [selectedNode, loadReadings]);
+  const chooseBasin = useCallback((id) => {
+    setBasinId(id);
+    try { localStorage.setItem(BASIN_KEY, id); } catch { /* storage unavailable */ }
+  }, []);
+
+  // --- document chrome ---
+  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("himdhara-theme", theme); } catch { /* storage unavailable */ } }, [theme]);
+  useEffect(() => { document.title = `${TITLES[page]} | ${brand.title}`; }, [page]);
+  useEffect(() => {
+    const onPop = () => setPage(pathFromLocation());
+    window.addEventListener("popstate", onPop);
+    if (window.location.pathname !== page && window.location.pathname !== "/") window.history.replaceState({}, "", page);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [page]);
+  useEffect(() => {
+    const expire = () => { setSession(null); setSignIn({ reason: "Your session ended. Sign in again to continue." }); };
+    window.addEventListener("himdhara-session-expired", expire);
+    return () => window.removeEventListener("himdhara-session-expired", expire);
+  }, []);
+
+  // --- data loading (everything once; basins are filtered client-side) ---
+  const refreshAlerts = useCallback(() => fetchAlerts({ limit: 500 }).then((rows) => { setAllAlerts(rows); setAlertsLoaded(true); }).catch(() => setAlertsLoaded(true)), []);
+  const refreshNodes = useCallback(() => fetchNodes().then((rows) => { setAllNodes(rows); setLoaded(true); return rows; }).catch(() => { setLoaded(true); return null; }), []);
+  const refreshBasins = useCallback(() => fetchBasins().then(setBasins).catch(() => {}), []);
+
+  useEffect(() => {
+    refreshBasins();
+    refreshNodes();
+    refreshAlerts();
+    fetchIncidents().then((rows) => { setAllIncidents(rows); setIncidentsLoaded(true); }).catch(() => setIncidentsLoaded(true));
+    fetchSettlements().then(setAllSettlements).catch(() => {});
+  }, [refreshBasins, refreshNodes, refreshAlerts]);
+
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const [status, counters] = await Promise.all([fetchHealth(), fetchStats()]);
+        if (!active) return;
+        setHealth(status); setStats(counters); setHealthError("");
+        refreshBasins();
+      } catch (failure) {
+        if (active) setHealthError(failure.message);
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 10000);
+    const slow = window.setInterval(() => { refreshNodes(); fetchIncidents().then(setAllIncidents).catch(() => {}); }, 30000);
+    return () => { active = false; window.clearInterval(timer); window.clearInterval(slow); };
+  }, [refreshNodes, refreshBasins]);
+
+  // Per-basin extras load when a basin becomes active: map topology, recent history, rain outlook.
+  useEffect(() => {
+    if (!activeBasinId) return;
+    if (!topologies[activeBasinId]) fetchTopology(activeBasinId).then((data) => setTopologies((current) => ({ ...current, [activeBasinId]: data }))).catch(() => {});
+  }, [activeBasinId, topologies]);
+  useEffect(() => {
+    const missing = nodes.filter((node) => !history[node.node_id]);
+    if (!missing.length) return;
+    Promise.all(missing.map((node) => fetchNodeReadings(node.node_id, { limit: HISTORY_LIMIT }).then((rows) => [node.node_id, rows]).catch(() => [node.node_id, []])))
+      .then((entries) => setHistory((current) => ({ ...Object.fromEntries(entries), ...current })));
+  }, [nodes, history]);
+  useEffect(() => {
+    if (!activeBasinId) return undefined;
+    let active = true;
+    const load = () => fetchWeather(activeBasinId).then((data) => active && setWeatherState({ id: activeBasinId, data })).catch(() => active && setWeatherState({ id: activeBasinId, data: { status: "UNAVAILABLE", stations: [] } }));
+    load();
+    const timer = window.setInterval(load, 10 * 60 * 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [activeBasinId]);
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    let active = true;
+    const load = () => fetchForecast(selectedId).then((data) => active && setForecastState({ id: selectedId, data })).catch(() => active && setForecastState({ id: selectedId, data: null }));
+    load();
+    const timer = window.setInterval(load, 15000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selectedId]);
+  const forecast = forecastState.id === selectedId ? forecastState.data : null; // never show another station's trend
+  const weather = weatherState.id === activeBasinId ? weatherState.data : null;
+
+  // --- live stream ---
   const onMessage = useCallback((packet) => {
     if (packet.type === "TELEMETRY_UPDATE") {
-      setLive((previous) => ({ ...previous, [packet.data.node_id]: packet.data }));
+      const data = packet.data;
+      setLive((previous) => ({ ...previous, [data.node_id]: { ...data, receivedAt: Date.now() } }));
+      setHistory((previous) => ({ ...previous, [data.node_id]: [...(previous[data.node_id] || []), data].slice(-HISTORY_LIMIT) }));
     } else if (packet.type === "NEW_ALERTS") {
-      setAlerts((previous) => {
+      setAllAlerts((previous) => {
         const next = new Map(previous.map((alert) => [alert.alert_id, alert]));
-        (packet.data || []).forEach((alert) => next.set(alert.alert_id, { ...next.get(alert.alert_id), ...alert, acknowledged: false }));
-        return Array.from(next.values());
+        (packet.data || []).forEach((alert) => next.set(alert.alert_id, { status: "ACTIVE", created_at: new Date().toISOString(), ...next.get(alert.alert_id), ...alert }));
+        return [...next.values()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
       });
-    } else if (packet.type === "ALERTS_RESOLVED") {
-      setAlerts((previous) => previous.map((alert) => alert.source_node_id === packet.source_node_id ? { ...alert, acknowledged: true, status: "RESOLVED" } : alert));
+      refreshAlerts();
+      refreshBasins();
+    } else if (packet.type === "ALERT_UPDATED") {
+      setAllAlerts((previous) => previous.map((alert) => (alert.alert_id === packet.data.alert_id ? { ...alert, ...packet.data } : alert)));
+      refreshBasins();
+    } else if (packet.type === "ALERTS_RESOLVED" || packet.type === "ALERTS_REFRESH") {
+      refreshAlerts();
+      refreshBasins();
+      fetchIncidents().then(setAllIncidents).catch(() => {});
     }
-  }, []);
-  const { isConnected } = useWebSocket(import.meta.env.VITE_WS_URL || "ws://127.0.0.1:8000/ws/stream", onMessage);
-  const navigate = useCallback((path) => { window.history.pushState({}, "", path); startTransition(() => setPage(path)); }, []);
-  const pageContent = useMemo(() => page === "/" ? <LandingPage nodes={nodes} settlements={settlements} live={live} onNavigate={navigate} /> : page === "/app/alerts" ? <AlertsPage alerts={alerts} /> : page === "/app/incidents" ? <IncidentsPage incidents={incidents} /> : page === "/app/configuration" ? <ConfigurationPage nodes={nodes} settlements={settlements} setSettlements={setSettlements} session={session} /> : page === "/bulletin" ? <PublicPage nodes={nodes} alerts={alerts.filter((alert) => !alert.acknowledged)} theme={theme} onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")} /> : <MonitorPage theme={theme} nodes={nodes} topology={topology} live={live} selectedNode={selectedNode} setSelectedNode={setSelectedNode} readings={readings} stats={stats} alerts={alerts} />, [page, nodes, topology, live, selectedNode, readings, stats, alerts, incidents, settlements, theme, session, navigate]);
-  const signOut = () => { localStorage.removeItem("trishuli-session"); setSession(null); };
-  if (page === "/") return <React.Suspense fallback={<div className="landing-loading" aria-label="Loading public landing page"><span /><span /><span /></div>}><div className="route-transition">{pageContent}</div></React.Suspense>;
-  if (page === "/bulletin") return <div className="route-transition">{pageContent}</div>;
-  return <Shell page={page} setPage={navigate} onDemo={() => setDemoOpen(true)} onSignIn={() => setSignInOpen(true)} onSignOut={signOut} onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")} theme={theme} session={session} isConnected={isConnected} activeAlertCount={alerts.filter((alert) => !alert.acknowledged).length}>{pageContent}{demoOpen && <DemoModal nodes={nodes} onClose={() => setDemoOpen(false)} onTriggered={(nodeId) => { setSelectedNode(nodes.find((node) => node.node_id === nodeId) || selectedNode); navigate("/app/monitor"); }} />}{signInOpen && <SignInModal onClose={() => setSignInOpen(false)} onSignedIn={setSession} />}</Shell>;
+  }, [refreshAlerts, refreshBasins]);
+  const { isConnected } = useWebSocket(WS_URL, onMessage);
+
+  const signOut = () => { localStorage.removeItem("himdhara-session"); setSession(null); };
+  const askSignIn = (reason) => setSignIn({ reason });
+  const openDemo = () => (session?.role === "operator" ? setDemoOpen(true) : askSignIn("Sign in as an operator to run the demo."));
+  const onThresholdsSaved = (nodeId, thresholds) => setAllNodes((current) => current.map((node) => (node.node_id === nodeId ? { ...node, thresholds } : node)));
+  const setSettlements = (updater) => setAllSettlements((current) => {
+    const scoped = current.filter((item) => item.basin_id === activeBasinId);
+    const updated = typeof updater === "function" ? updater(scoped) : updater;
+    return [...current.filter((item) => item.basin_id !== activeBasinId), ...updated];
+  });
+
+  if (page === "/") {
+    return <React.Suspense fallback={<div className="landing-loading" aria-label="Loading"><span /><span /><span /></div>}>
+      <LandingPage basins={basins} nodes={allNodes} settlements={allSettlements} live={live} onNavigate={navigate} onChooseBasin={chooseBasin} apiDown={!!healthError} />
+    </React.Suspense>;
+  }
+  if (page === "/bulletin") {
+    return <BulletinPage basins={basins} basin={basin} onBasinChange={chooseBasin} nodes={nodes} loaded={loaded} openAlerts={openAlerts} settlements={settlements} live={live} now={now} staleSeconds={staleSeconds} apiDown={!!healthError} weather={weather} theme={theme} onToggleTheme={toggleTheme} navigate={navigate} />;
+  }
+
+  const content = {
+    "/app/monitor": <MonitorPage nodes={nodes} loaded={loaded && !!basin} basin={basin} topology={topology} live={live} history={history} selectedId={selectedId} onSelect={setSelectedId} stats={stats} openAlerts={openAlerts} forecast={forecast} weather={weather} theme={theme} now={now} staleSeconds={staleSeconds} navigate={navigate} />,
+    "/app/alerts": <AlertsPage alerts={alerts} loaded={alertsLoaded} session={session} onSignIn={() => askSignIn()} />,
+    "/app/analytics": <AnalyticsPage key={activeBasinId} nodes={nodes} basinId={activeBasinId} selectedId={selectedId} session={session} onSignIn={() => askSignIn("Sign in to export data.")} />,
+    "/app/incidents": <IncidentsPage incidents={incidents} loaded={incidentsLoaded} nodes={nodes} session={session} onSignIn={() => askSignIn("Sign in to export data.")} now={now} />,
+    "/app/configuration": <ConfigurationPage nodes={nodes} settlements={settlements} setSettlements={setSettlements} onThresholdsSaved={onThresholdsSaved} session={session} onSignIn={() => askSignIn()} health={health} />,
+  }[page];
+
+  return <Shell page={page} navigate={navigate} health={health} healthError={healthError} isConnected={isConnected} nodes={nodes} live={live} now={now}
+    openAlerts={openAlerts.length} session={session} onSignIn={() => askSignIn()} onSignOut={signOut} theme={theme} onToggleTheme={toggleTheme} onDemo={openDemo}
+    basins={basins} basin={basin} onBasinChange={chooseBasin}>
+    {content}
+    {demoOpen && <DemoModal nodes={nodes} defaultNode={selectedId} onClose={() => setDemoOpen(false)}
+      onTriggered={(nodeId) => { setSelectedId(nodeId); }} onReset={() => { setLive({}); refreshAlerts(); refreshNodes(); refreshBasins(); }} />}
+    {signIn && <SignInModal reason={signIn.reason} onClose={() => setSignIn(null)} onSignedIn={setSession} />}
+  </Shell>;
 }

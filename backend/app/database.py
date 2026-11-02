@@ -37,8 +37,11 @@ def migrate_schema():
             "status": "VARCHAR(20) DEFAULT 'ACTIVE'",
             "acknowledged_at": "DATETIME", "acknowledged_by": "VARCHAR(100)",
             "acknowledgment_note": "TEXT", "resolved_at": "DATETIME",
-            "resolved_by": "VARCHAR(100)"
+            "resolved_by": "VARCHAR(100)", "basin_id": "VARCHAR(40) DEFAULT 'trishuli'"
         },
+        "nodes": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
+        "settlements": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
+        "incidents": {"basin_id": "VARCHAR(40) DEFAULT 'trishuli'"},
         "sensor_readings": {
             "s_level": "FLOAT", "s_rate": "FLOAT", "s_soil": "FLOAT"
         }
@@ -53,6 +56,9 @@ def migrate_schema():
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
         if "status" in {c["name"] for c in inspector.get_columns("alerts")}:
             conn.execute(text("UPDATE alerts SET status='ACTIVE' WHERE status IS NULL"))
+        # "Latest reading per station" and per-station windows need this composite index; create_all
+        # does not add indexes to tables that already exist, so older databases get it here.
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_readings_node_time ON sensor_readings (node_id, timestamp)"))
         try:
             if engine.dialect.name == "sqlite":
                 conn.execute(text(

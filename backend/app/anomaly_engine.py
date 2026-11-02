@@ -44,19 +44,16 @@ class AnomalyDetectionEngine:
         self._load_default_thresholds()
 
     def _load_default_thresholds(self):
-        """Auto-populates thresholds from river_topology.json as a fail-safe."""
+        """Auto-populates thresholds from every basin file as a fail-safe."""
         try:
-            topo_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "..", "shared", "river_topology.json")
-            )
-            if os.path.exists(topo_path):
-                with open(topo_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    for n in data.get("nodes", []):
-                        if "thresholds" in n:
-                            self._node_thresholds[n["node_id"]] = n["thresholds"]
-        except Exception as e:
-            pass
+            from .topology import load_basins
+            for basin in load_basins():
+                for n in basin["nodes"]:
+                    if "thresholds" in n:
+                        self._node_thresholds[n["node_id"]] = n["thresholds"]
+        except Exception as error:
+            # Thresholds are re-applied from the database at startup; never block the engine on a bad file.
+            print(f"[!] Could not preload thresholds from basin files: {error}", flush=True)
 
     def set_node_thresholds(self, node_id: str, thresholds: Dict[str, float]):
         """Sets physical safety thresholds (watch, warning, critical) for a specific node."""
