@@ -44,7 +44,7 @@ class AlertModel(Base):
     __tablename__ = "alerts"
     
     id = Column(Integer, primary_key=True, index=True)
-    alert_id = Column(String(50), unique=True, index=True, nullable=False)
+    alert_id = Column(String(100), unique=True, index=True, nullable=False)
     source_node_id = Column(String(50), index=True, nullable=False)
     basin_id = Column(String(40), index=True, nullable=False, default="trishuli")
     source_node_name = Column(String(100), nullable=False)
@@ -85,7 +85,7 @@ class UserModel(Base):
 class AlertHistoryModel(Base):
     __tablename__ = "alert_history"
     id = Column(Integer, primary_key=True, index=True)
-    alert_id = Column(String(50), index=True, nullable=False)
+    alert_id = Column(String(100), index=True, nullable=False)
     from_status = Column(String(20), nullable=True)
     to_status = Column(String(20), nullable=False)
     changed_by = Column(String(100), nullable=True)
@@ -130,7 +130,7 @@ class NotificationModel(Base):
     __tablename__ = "notifications"
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    alert_id = Column(String(50), index=True, nullable=True)
+    alert_id = Column(String(100), index=True, nullable=True)
     channel = Column(String(10), nullable=False)
     provider = Column(String(20), nullable=False)
     recipient = Column(String(150), nullable=False)

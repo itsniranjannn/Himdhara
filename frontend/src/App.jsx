@@ -62,16 +62,27 @@ function SignInModal({ reason, onClose, onSignedIn }) {
   </Modal>;
 }
 
-function DemoModal({ nodes, defaultNode, onClose, onTriggered, onReset }) {
+function DemoModal({ nodes, defaultNode, onClose, onTriggered, onReset, onNotify }) {
   const [targetNode, setTargetNode] = useState(defaultNode || nodes[0]?.node_id || "");
   const [surge, setSurge] = useState(150);
   const [state, setState] = useState({ busy: false, text: "", error: false });
-  async function run(action, success) {
+  async function run(action, success, closeOnSuccess = false) {
     setState({ busy: true, text: "", error: false });
-    try { await action(); setState({ busy: false, text: success, error: false }); } catch (failure) { setState({ busy: false, text: failure.message, error: true }); }
+    try {
+      await action();
+      if (closeOnSuccess) {
+        onClose();
+        if (onNotify) onNotify(success);
+      } else {
+        setState({ busy: false, text: success, error: false });
+        if (onNotify) onNotify(success);
+      }
+    } catch (failure) {
+      setState({ busy: false, text: failure.message, error: true });
+    }
   }
   return <Modal title="Run demo spike" description="Simulates a flash flood on one station so you can watch detection, routing and alerts react." onClose={onClose}
-    onSubmit={(event) => { event.preventDefault(); run(async () => { await triggerSpike(targetNode, surge); onTriggered(targetNode); }, "Spike sent. Watch the station turn WARNING then CRITICAL within a few readings."); }}>
+    onSubmit={(event) => { event.preventDefault(); run(async () => { await triggerSpike(targetNode, surge); onTriggered(targetNode); }, "Spike sent. Watch the station turn WARNING then CRITICAL within a few readings.", true); }}>
     <Field label="Target station"><select value={targetNode} onChange={(event) => setTargetNode(event.target.value)}>{nodes.map((node) => <option key={node.node_id} value={node.node_id}>{node.name}</option>)}</select></Field>
     <Field label={<>Water surge <output>+{surge} cm</output></>}><input type="range" min="80" max="220" step="10" value={surge} onChange={(event) => setSurge(Number(event.target.value))} /></Field>
     {state.text && <p className={state.error ? "form-error" : "demo-message"} role={state.error ? "alert" : "status"}>{state.text}</p>}
@@ -88,6 +99,7 @@ export default function App() {
   const [session, setSession] = useState(readSession);
   const [signIn, setSignIn] = useState(null); // null | { reason }
   const [demoOpen, setDemoOpen] = useState(false);
+  const [toast, setToast] = useState(null); // null | string
   const [basins, setBasins] = useState([]);
   const [basinId, setBasinId] = useState(readBasin);
   const [allNodes, setAllNodes] = useState([]);
@@ -268,12 +280,18 @@ export default function App() {
     "/app/configuration": <ConfigurationPage nodes={nodes} settlements={settlements} setSettlements={setSettlements} onThresholdsSaved={onThresholdsSaved} session={session} onSignIn={() => askSignIn()} health={health} />,
   }[page];
 
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast((current) => (current === msg ? null : current)), 6000);
+  }, []);
+
   return <Shell page={page} navigate={navigate} health={health} healthError={healthError} isConnected={isConnected} nodes={nodes} live={live} now={now}
     openAlerts={openAlerts.length} session={session} onSignIn={() => askSignIn()} onSignOut={signOut} theme={theme} onToggleTheme={toggleTheme} onDemo={openDemo}
     basins={basins} basin={basin} onBasinChange={chooseBasin}>
     {content}
+    {toast && <div className="app-toast" role="status" onClick={() => setToast(null)}><span className="toast-dot" />{toast}</div>}
     {demoOpen && <DemoModal nodes={nodes} defaultNode={selectedId} onClose={() => setDemoOpen(false)}
-      onTriggered={(nodeId) => { setSelectedId(nodeId); }} onReset={() => { setLive({}); refreshAlerts(); refreshNodes(); refreshBasins(); }} />}
+      onTriggered={(nodeId) => { setSelectedId(nodeId); }} onReset={() => { setLive({}); refreshAlerts(); refreshNodes(); refreshBasins(); }} onNotify={showToast} />}
     {signIn && <SignInModal reason={signIn.reason} onClose={() => setSignIn(null)} onSignedIn={setSession} />}
   </Shell>;
 }

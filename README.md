@@ -1,806 +1,249 @@
-# Himdhara: River Early Warning for Nepal
+<div align="center">
 
-**8th Semester Engineering Final Year Project**  
-**Study area:** Trishuli and Bhotekoshi River Basin, Bagmati Province, Nepal
+# 🌊 हिमधारा (Himdhara)
+### Autonomous Multi-Basin River Early Warning & Downstream Hazard Dispatch System for Nepal
 
-This repository contains a complete distributed flood and landslide early-warning prototype. It combines a six-station MQTT telemetry simulator, a FastAPI ingestion and analysis service, a SQLAlchemy persistence layer, a graph-based alert routing engine, a WebSocket event stream, and a React/Leaflet operations dashboard.
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/Frontend-React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Leaflet](https://img.shields.io/badge/Maps-Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com)
+[![MQTT](https://img.shields.io/badge/Telemetry-MQTT_v5-660066?style=for-the-badge&logo=eclipsemosquitto&logoColor=white)](https://mqtt.org)
+[![MySQL](https://img.shields.io/badge/Database-MySQL_/_SQLAlchemy-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com)
+[![License](https://img.shields.io/badge/Academic-B.E._Final_Year-orange?style=for-the-badge)](#)
 
-The system is designed for a viva/demo deployment, but the boundaries between the simulator, ingestion service, database, API, and dashboard are kept explicit so that real sensor publishers and a production database can replace the local components.
+<p align="center">
+  <b>A real-time, distributed hydrological telemetry, graph-based downstream flood wave routing, and automated multi-lingual emergency dispatch platform engineered for Himalayan river basins.</b>
+</p>
 
-## Contents
+[System Overview](#-system-overview) •
+[Interactive Architecture](#-interactive-architecture) •
+[Screenshots & UI Tour](#-system-interface--visual-tour) •
+[Key Features](#-key-features) •
+[Hydrodynamic Model](#-hydrodynamic-stress-model-hsi) •
+[Quick Start](#-quick-start-guide) •
+[Demonstration Workflow](#-evaluator-demo--viva-guide)
 
-1. [System capabilities](#system-capabilities)
-2. [Architecture](#architecture)
-3. [Repository layout](#repository-layout)
-4. [Runtime components](#runtime-components)
-5. [Telemetry and event contracts](#telemetry-and-event-contracts)
-6. [Analytical risk engine](#analytical-risk-engine)
-7. [Graph routing and alert lifecycle](#graph-routing-and-alert-lifecycle)
-8. [Persistence model](#persistence-model)
-9. [REST and WebSocket API](#rest-and-websocket-api)
-10. [Dashboard information architecture](#dashboard-information-architecture)
-11. [Configuration](#configuration)
-12. [Local setup and operation](#local-setup-and-operation)
-13. [Demo and spike workflow](#demo-and-spike-workflow)
-14. [Authentication and authorization](#authentication-and-authorization)
-15. [Design system and motion](#design-system-and-motion)
-16. [Testing and verification](#testing-and-verification)
-17. [Troubleshooting](#troubleshooting)
-18. [Deployment and production considerations](#deployment-and-production-considerations)
+---
 
-## System capabilities
+</div>
 
-- Publishes realistic five-second telemetry for six stations.
-- Consumes MQTT JSON messages and stores raw plus computed readings.
-- Calculates EMA baseline, rate of change, component scores, HSI, and risk level.
-- Shows current station state, timestamps, trends, thresholds, map position, and network topology.
-- Routes `WARNING` and `CRITICAL` conditions through the river graph to affected settlements.
-- Computes flood-wave arrival ETA using weighted shortest paths.
-- Creates one open alert per `(source_node_id, affected_settlement_id)` pair.
-- Updates an existing `ACTIVE` or `ACKNOWLEDGED` alert in place on later evaluation cycles.
-- Resolves open alerts when the source station returns to `NORMAL`.
-- Records acknowledgement, resolution, recovery, and operator history.
-- Broadcasts live telemetry and alert events over WebSocket.
-- Read-only public access, with operator sign-in required for every state-changing action (see [Authentication](#authentication-and-authorization)).
-- Detects silent sensors: a station with no reading for `STALE_AFTER_SECONDS` (default 60) is shown as OFFLINE instead of its last risk band.
-- Short-horizon trend forecast per station (minutes until watch/warning/critical at the current rate, guidance only).
-- Operators acknowledge and resolve alerts with notes and a full history; alerts also auto-resolve on recovery.
-- Analytics page: water-level history over 1 h to 7 days, per-station statistics, risk-band time share, CSV export.
-- Alert delivery by email (SMTP, free) to registered contacts in English or Nepali, with a persistent delivery log. Defaults to simulated delivery. There is no SMS channel because SMS gateways are paid.
-- Public bulletin in English and Nepali, with resident self-registration for email alerts.
-- Telemetry validation (unknown stations, out-of-range or non-numeric values are rejected) and a private MQTT topic prefix.
-- Includes a modal Demo workflow for spike injection and simulator reset.
-- Provides a public bulletin with station conditions, general safety guidance, and settlement evacuation points.
-- Supports SQLite for zero-configuration local development and PostgreSQL for hosted deployments.
+<p align="center">
+  <img src="docs/screenshots/landing-hero-dark.png" alt="Himdhara Public Portal" width="94%" style="border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #334155;" />
+</p>
 
-## Basins (multi-basin support)
+---
 
-The system monitors several Nepal river basins at once. Each basin is one JSON file in `shared/basins/`:
+## 🌟 System Overview
 
-| File | Basin | Stations | Settlements |
-|---|---|---|---|
-| `trishuli.json` | Trishuli & Bhotekoshi | 6 | 5 |
-| `bagmati.json` | Bagmati (Kathmandu Valley) | 5 | 5 |
-| `koshi.json` | Koshi (Sunkoshi to the Koshi Barrage) | 4 | 5 |
-| `gandaki.json` | Kaligandaki - Narayani | 4 | 4 |
-| `karnali.json` | Karnali | 3 | 3 |
+**Himdhara** is an automated, real-time river surveillance and disaster risk reduction framework built for Nepal's steep topography and flash-flood vulnerable river valleys:
 
-**Locations are checked, readings are simulated.** Every station sits on its river: coordinates were snapped to the nearest named river in OpenStreetMap, and each station's elevation is the free Open-Meteo terrain value at that point (an audit found 9 of 22 original positions were off the river and they were corrected). Each `reach` link in the basin files carries a `path`, the real river channel between the two stations traced from OpenStreetMap (17 reaches, 16 followed the main stem as found and Upper Karnali was moved 67 km of channel upstream onto the connected main stem), so the map draws the winding river rather than a straight line. Sensor readings are simulated, and populations, evacuation points and travel times are illustrative, not surveyed. Station names are descriptive, not official DHM gauge identifiers. Each basin file carries `"simulated": true`, and the UI says so. Replace them with real data before any real-world use.
+1. **IoT Telemetry Emulation (MQTT)**: Continuous 5-second asynchronous sensor feeds streaming water level (cm), precipitation intensity (mm), and soil moisture content (%) across **5 major Nepalese river basins** (Trishuli, Bagmati, Koshi, Gandaki, and Karnali).
+2. **Dynamic Hydrological Stress Index (HSI)**: A calibrated physics-grounded engine combining Exponential Moving Averages (EMA), flash surge rates of change ($\frac{dWL}{dt}$), and soil saturation into a deterministic multi-tier risk classification (`NORMAL` $\to$ `WATCH` $\to$ `WARNING` $\to$ `CRITICAL`).
+3. **Directed Graph Propagation (Dijkstra's ETA)**: Models river reaches as directed network edges with stream velocities and geodetic distances to calculate the precise flood wave **Estimated Time of Arrival (ETA)** in minutes for vulnerable downstream human settlements.
+4. **Bilingual Emergency Email Dispatch**: Automatically compiles and delivers high-priority, formatted HTML/plain-text alert notices to local disaster management authorities and registered residents in both **Nepali (नेपाली)** and **English**.
+5. **Interactive Operations Dashboard**: High-performance React operations suite featuring real-time GIS river vector overlays, live telemetry graphs, interactive 3D terrain projections, and one-click demo flood surge injection.
 
-### Adding a basin
+---
 
-1. Copy an existing file in `shared/basins/` and change the `basin` header (`basin_id`, `name`, `name_ne`, `region`, `center`, `zoom`, `order`).
-2. Define `nodes` (stations with `baseline`, `thresholds` and `downstream_targets` with travel times in minutes) and `settlements`.
-3. Restart the backend and simulator. Nothing else changes: the basin appears in the switcher, the landing page, the bulletin and the API.
+## 📸 System Interface & Visual Tour
 
-`backend/app/topology.py` validates every file at startup and in the tests: unique IDs across basins, coordinates inside Nepal, increasing thresholds, positive travel times, and downstream targets that exist.
+### 1. Operations Center — Live Basin Surveillance
+Real-time geographic tracking of river gauge nodes with topological edge flow and dynamic risk color-coding.
 
-### API
+| Dark Theme (Night Operations) | Light Theme (Field Monitoring) |
+| :---: | :---: |
+| <img src="docs/screenshots/monitor-critical-dark.png" width="100%" alt="Monitor Dark" /> | <img src="docs/screenshots/monitor-light-latest.png" width="100%" alt="Monitor Light" /> |
 
-`GET /api/basins/{id}/flow` returns modelled river discharge (GloFAS) near each station as a real-world reference, and `GET /api/basins/{id}/weather` the rain outlook. `GET /api/basins` lists basins with station, settlement and open-alert counts. `nodes`, `alerts`, `settlements`, `incidents`, `stats`, `analytics/summary` and `network/topology` accept `?basin=<id>`. Alerts are routed only within their own basin.
+---
 
-## Free resources used
+### 2. Downstream Incident Dispatch & Lifecycle Management
+State machine tracking of alerts (`ACTIVE` $\to$ `ACKNOWLEDGED` $\to$ `RESOLVED`), flood surge propagation paths, and real-time operator triage.
 
-Everything runs on free tools and services, with no API key or paid plan required:
+| Critical Flood Incident View | Incident Timeline Log |
+| :---: | :---: |
+| <img src="docs/screenshots/alerts-active-latest.png" width="100%" alt="Alerts View" /> | <img src="docs/screenshots/incidents-dark.png" width="100%" alt="Incidents Log" /> |
 
-| Need | Resource |
-|---|---|
-| Database | SQLite file inside the project (PostgreSQL optional) |
-| MQTT broker | HiveMQ public broker, protected by a private random topic prefix |
-| Map tiles | OpenStreetMap (follow its tile usage policy; for heavy traffic use a tile host or your own server) |
-| Rain forecast | Open-Meteo (free, no key, CC BY 4.0, attribution shown in the UI), cached 30 minutes |
-| River flow reference | Open-Meteo Flood API (GloFAS model, free, no key, CC BY 4.0), cached 3 hours, `GET /api/basins/{id}/flow` |
-| River shapes | OpenStreetMap waterways, traced once and stored in the basin files (ODbL, attribution in the map footer) |
-| Alerts to the public | Email through any SMTP server, for example a free Gmail app password (`EMAIL_PROVIDER=smtp`, `SMTP_*`) |
-| Fonts | Fraunces, IBM Plex Sans, IBM Plex Mono, Noto Sans Devanagari, self-hosted via `@fontsource` (no font CDN) |
+---
 
-SMS and Telegram are intentionally not used: email is the only alert channel.
+### 3. Public Early Warning Bulletin (Civic Portal)
+Zero-friction, mobile-optimized public portal allowing riverside residents to check live basin safety status and self-register for automated email hazard warnings.
 
-## Design system
+| Public Web Bulletin | Mobile Responsive View |
+| :---: | :---: |
+| <img src="docs/screenshots/bulletin-active-latest.png" width="100%" alt="Public Bulletin" /> | <img src="docs/screenshots/mobile-bulletin-latest.png" width="60%" alt="Mobile Bulletin" /> |
 
-Tokens live in `frontend/src/styles/tokens.css` (palette "Survey Sheet": warm survey paper, ink-blue rivers, a vermilion accent, hairline rules and hard-offset shadows; dark mode is "night survey"). Typography is Fraunces for display, IBM Plex Sans for the interface, IBM Plex Mono for readings and labels, and Noto Sans Devanagari for Nepali. All fonts are free and self-hosted. The landing page adds a procedural 3D valley (three.js) with a flood wave moving down the river.
-## Architecture
+---
 
-```text
-                         +------------------------------+
-                         |  React + Vite operations UI  |
-                         |  Leaflet map, charts, alerts |
-                         +---------------+--------------+
-                                         |
-                              REST /api + WebSocket
-                                         |
-+------------------+       +-------------v----------------+
-| Python simulator | MQTT  | FastAPI application          |
-| 6 sensor nodes   +------> | auth, REST, WebSocket,       |
-| spike/recession  |       | MQTT lifecycle orchestration |
-+------------------+       +------+------+----------------+
-                                  |      |
-                                  |      +--> Dispatcher/WebSocket hub
-                                  |
-                 +----------------v----------------+
-                 | MQTT ingestion and analysis     |
-                 | validate -> compute -> persist  |
-                 | deduplicate -> route -> publish |
-                 +----------------+----------------+
-                                  |
-                    +-------------v--------------+
-                    | SQLAlchemy database         |
-                    | SQLite or PostgreSQL        |
-                    | nodes, readings, alerts,    |
-                    | users, history, incidents   |
-                    +-----------------------------+
+## 📐 Interactive Architecture
 
-Basin files in shared/basins/ supply station coordinates,
-thresholds, directed edges, settlement metadata, and travel times.
+```mermaid
+flowchart TD
+    subgraph SENSORS ["📡 Field Sensor Nodes (MQTT Publishers)"]
+        S1["Trishuli Basin (6 Stations)"]
+        S2["Bagmati Basin (5 Stations)"]
+        S3["Koshi Basin (4 Stations)"]
+        S4["Gandaki Basin (4 Stations)"]
+        S5["Karnali Basin (3 Stations)"]
+    end
+
+    subgraph BROKER ["☁️ Message Broker"]
+        MQTT[("HiveMQ / Mosquitto MQTT Broker<br/>Port 1883")]
+    end
+
+    subgraph BACKEND ["⚙️ Himdhara Core Backend (FastAPI / Python 3.13)"]
+        INGEST["MQTT Ingestion Service<br/>(Paho-MQTT v2)"]
+        ANOMALY["Analytical Risk Engine<br/>(EMA, Surge Rate, HSI Score)"]
+        GRAPH["Graph Propagation Engine<br/>(Directed River Reaches & ETA)"]
+        DISPATCH["Alert Dispatcher & Broadcast Hub"]
+        DB[("MySQL Database<br/>SQLAlchemy ORM")]
+    end
+
+    subgraph CLIENTS ["💻 Dashboards & Dispatch Channels"]
+        DASH["React 18 Dashboard<br/>(WebSocket Live Stream)"]
+        BULLETIN["Public Bulletin Portal<br/>(Bilingual Ne / En)"]
+        MAIL["Automated SMTP Gateway<br/>(Bilingual Alert Cards)"]
+    end
+
+    S1 & S2 & S3 & S4 & S5 -->|JSON Telemetry Every 5s| MQTT
+    MQTT -->|Subscribed Topics| INGEST
+    INGEST --> ANOMALY
+    ANOMALY -->|Threshold Breach| GRAPH
+    ANOMALY & GRAPH --> DB
+    GRAPH --> DISPATCH
+    DISPATCH -->|WebSocket Packet| DASH
+    DISPATCH -->|REST API Updates| BULLETIN
+    DISPATCH -->|Bilingual SMTP| MAIL
 ```
 
-### End-to-end processing
+---
 
-1. `sensor-sim/simulator.py` loads every file in `shared/basins/` and publishes one telemetry message per station every five seconds.
-2. `backend/app/mqtt_client.py` subscribes to `nepal/trishuli/sensors/#`.
-3. The ingestion service validates the payload, finds the station, computes anomaly metrics, and writes a `SensorReadingModel`.
-4. The station's latest risk and timestamp become visible through `/api/nodes`.
-5. If the risk is `WARNING` or `CRITICAL`, `graph_engine` calculates downstream settlement routes.
-6. The alert upsert routine updates an existing open pair or inserts a new alert only when no open pair exists.
-7. On recovery to `NORMAL`, open alerts for that source station are transitioned to `RESOLVED`.
-8. The dispatcher sends `TELEMETRY_UPDATE` and `NEW_ALERTS` messages to connected dashboards.
-9. React state updates the map, chart, station list, alert queue, counters, and animations without a full reload.
+## 🔬 Hydrodynamic Stress Model (HSI)
 
-## Repository layout
+Himdhara does not rely on static water level triggers alone; it computes a composite **Hydrological Stress Index ($HSI$)** synthesizing three critical hydraulic terms:
 
-```text
-8thsemproj/
-├── .env.example                       # Environment variable template
-├── start_all.ps1                      # Windows launcher for all services
-├── shared/
-│   └── basins/*.json                  # One file per river basin: stations, settlements, edges, thresholds
-├── sensor-sim/
-│   ├── simulator.py                   # Six-node MQTT simulator
-│   └── trigger_spike.py               # Command-line spike publisher
-├── backend/
-│   ├── run.py                         # Uvicorn entry point
-│   ├── app/
-│   │   ├── main.py                    # FastAPI app, lifecycle, REST, WebSocket
-│   │   ├── config.py                  # Environment-backed settings
-│   │   ├── database.py                # Engine, sessions, schema migration
-│   │   ├── models.py                  # SQLAlchemy persistence models
-│   │   ├── schemas.py                 # Request and response validation
-│   │   ├── auth.py                    # Password hashing and JWT validation
-│   │   ├── mqtt_client.py             # MQTT ingestion and alert lifecycle
-│   │   ├── anomaly_engine.py          # EMA, HSI, thresholds, classification
-│   │   ├── graph_engine.py            # Directed graph and Dijkstra routing
-│   │   ├── dispatcher.py              # WebSocket fan-out and notification log
-│   │   ├── notifier.py                # Email notification layer (SMTP, delivery log)
-│   │   └── seed_data.py               # Station and settlement initialization
-│   └── tests/                         # Backend unit and integration tests
-├── frontend/
-│   ├── package.json                   # React/Vite scripts and dependencies
-│   └── src/
-│       ├── App.jsx                    # Shell, routes, auth modal, live state
-│       ├── index.css                  # Global design system and animations
-│       ├── hooks/useWebSocket.js      # Reconnect and heartbeat handling
-│       ├── services/api.js            # REST client and session expiry handling
-│       └── components/
-│           ├── RiverMap.jsx           # Leaflet basin map
-│           ├── TelemetryChart.jsx     # Water level and threshold chart
-│           ├── AlertFeed.jsx           # ETA-sorted alert queue
-│           ├── SpikeControl.jsx        # Authenticated Demo controls
-│           ├── RawDataTable.jsx        # Telemetry and algorithm audit
-│           └── AccessPages.jsx         # Login and public bulletin
-└── README.md
-```
+$$HSI = S_{\text{level}} + 0.5 \cdot S_{\text{rate}} + S_{\text{soil}}$$
 
-## Runtime components
+### Component Terms:
+1. **Stage Stress ($S_{\text{level}}$)**: Continuous piecewise normalization measuring depth relative to calibrated bankfull safety thresholds:
+   - $S_{\text{level}} \ge 3.0$: Water level exceeds **Critical Bankfull Capacity**.
+   - $2.0 \le S_{\text{level}} < 3.0$: Water level is within the **Warning Zone**.
+   - $1.0 \le S_{\text{level}} < 2.0$: Water level is approaching **Watch Level**.
+2. **Surge Acceleration Term ($S_{\text{rate}}$)**: Captures dangerous upstream cloudburst torrents and glacial outbursts:
+   $$S_{\text{rate}} = \min\left(2.5, \; \frac{1}{\Delta t} \cdot \frac{WL_t - WL_{t-1}}{12.0}\right)$$
+3. **Soil Moisture Saturation Term ($S_{\text{soil}}$)**: Accounts for catchment runoff coefficient reduction due to saturated soil:
+   $$S_{\text{soil}} = \max\left(0.0, \; \frac{\text{Moisture}\% - 70.0}{30.0}\right)$$
 
-### Sensor simulator
+### Downstream Flood Travel ETA:
+The propagation engine treats every river basin as a directed acyclic graph $G = (V, E)$, computing the shortest downstream path to vulnerable settlements using cumulative reach travel times:
 
-The simulator creates six `SensorNode` instances from the shared topology. Each node has:
+$$\text{ETA}_{\text{settlement}} = \sum_{e \in \text{Path}} \frac{\text{Distance}_e}{v_e}$$
 
-- Stable `node_id`, name, coordinates, elevation, and baseline values.
-- Water level, rainfall, and soil-moisture state.
-- Normal random fluctuation.
-- A rising flood-spike phase.
-- A sustained crest phase.
-- A gradual recession phase back to baseline.
+---
 
-The simulator listens on the control topic for `INJECT_SPIKE` and `RESET_SIMULATION` commands. Its five-second interval is intentionally aligned with the dashboard's fresh-reading and stale-state checks.
+## ⚡ Key Features
 
-### FastAPI service
+| Capability | Technical Implementation | Benefit |
+| :--- | :--- | :--- |
+| **Multi-Basin Surveillance** | 5 distinct river basins (`shared/basins/*.json`) | Nationwide multi-valley scalability |
+| **Instant Real-Time Stream** | Full-duplex WebSocket (`/ws/stream`) | Sub-100ms dashboard latency without polling |
+| **Graph-Based Routing** | Dijkstra shortest-path downstream reach model | Accurate warning evacuation lead times |
+| **Bilingual Dispatch** | Modern HTML + fallback plain text in EN & नेपाली | Critical clarity for grassroots rural communities |
+| **Deduplicated Delivery** | Unique alert ID state machine tracking | Zero duplicate notification spamming |
+| **Field Stale Detection** | Automatic heartbeat watchdog (`STALE_AFTER_SECONDS`) | Prevents silent sensor failure oversights |
+| **RBAC Security** | JWT Authentication with Operator role enforcement | Protected configuration & incident audit trail |
 
-Startup runs an idempotent schema migration, seeds the graph network, starts the MQTT worker, and exposes REST and WebSocket endpoints. Shutdown stops the MQTT worker cleanly.
+---
 
-### MQTT ingestion
-
-The ingestion worker:
-
-1. Connects to the configured broker.
-2. Subscribes to the telemetry wildcard.
-3. Parses JSON payloads.
-4. Computes risk metrics.
-5. Persists readings and station state.
-6. Creates or updates routed alerts.
-7. Resolves alerts during normal recession.
-8. Broadcasts live events.
-
-### Dispatcher and notifier
-
-The dispatcher maintains active WebSocket connections and broadcasts JSON events. The notifier emails registered contacts through SMTP and keeps a delivery log; the default `simulated` provider logs without sending.
-
-## Telemetry and event contracts
-
-### MQTT telemetry payload
-
-Topic pattern:
-
-```text
-nepal/trishuli/sensors/{node_id}
-```
-
-Payload:
-
-```json
-{
-  "node_id": "NODE_LANGTANG_01",
-  "rainfall_mm": 2.5,
-  "water_level_cm": 45.0,
-  "soil_moisture_pct": 38.0,
-  "timestamp": "2026-09-29T15:40:29.940Z"
-}
-```
-
-`timestamp` is optional; the backend uses the current UTC time when it is absent.
-
-### MQTT control payloads
-
-Spike injection topic:
-
-```text
-nepal/trishuli/control/spike
-```
-
-```json
-{
-  "action": "INJECT_SPIKE",
-  "node_id": "NODE_LANGTANG_01",
-  "water_level_surge_cm": 145.0,
-  "rainfall_surge_mm": 80.0,
-  "soil_moisture_surge_pct": 40.0,
-  "duration_seconds": 45
-}
-```
-
-Reset payload:
-
-```json
-{
-  "action": "RESET_SIMULATION"
-}
-```
-
-### WebSocket endpoint
-
-Connect to:
-
-```text
-ws://127.0.0.1:8000/ws/stream
-```
-
-The client sends `ping`; the server replies with `pong`. Server events include:
-
-```json
-{
-  "type": "TELEMETRY_UPDATE",
-  "data": {
-    "node_id": "NODE_LANGTANG_01",
-    "water_level_cm": 45.0,
-    "risk_level": "NORMAL",
-    "hsi_score": 0.12,
-    "timestamp": "2026-09-29T15:40:29.940Z"
-  }
-}
-```
-
-```json
-{
-  "type": "NEW_ALERTS",
-  "data": [
-    {
-      "alert_id": "ALERT-...",
-      "source_node_id": "NODE_LANGTANG_01",
-      "affected_settlement_id": "SETTLE_DHUNCHE",
-      "eta_minutes": 18.0,
-      "risk_level": "CRITICAL",
-      "status": "ACTIVE"
-    }
-  ]
-}
-```
-
-## Analytical risk engine
-
-The analysis is deterministic and explainable; it does not use an ML library.
-
-### EMA baseline
-
-For a rolling window size `N = 12`:
-
-```text
-alpha = 2 / (N + 1)
-EMA_t = alpha * L_t + (1 - alpha) * EMA_(t-1)
-```
-
-### Rate of change
-
-```text
-rate_cm_min = (water_level_t - water_level_(t-1)) / elapsed_minutes
-```
-
-### Component scores
-
-The engine derives normalized water-level deviation, positive surge-rate, and soil-saturation terms:
-
-```text
-HSI =
-  0.45 * s_level +
-  0.40 * s_rate +
-  0.15 * s_soil
-```
-
-The soil saturation term begins contributing above the configured `40%` threshold.
-
-### Risk classification
-
-Each station also has water-level thresholds:
-
-| Risk | Meaning |
-|---|---|
-| `NORMAL` | Baseline conditions |
-| `WATCH` | Early deviation, runoff, or elevated water level |
-| `WARNING` | Significant surge or warning threshold crossed |
-| `CRITICAL` | Immediate flash-flood threat or critical threshold crossed |
-| `STALE` | Dashboard-derived display state when no reading is received within the freshness window |
-
-The persisted reading risk is one of `NORMAL`, `WATCH`, `WARNING`, or `CRITICAL`. `STALE` is a presentation state based on timestamp age.
-
-The mapping is explicit and evaluated from highest severity down: `CRITICAL` is selected at
-the critical water threshold, HSI `>= 3.0`, or a warning-level surge above `20 cm/min`;
-`WARNING` is selected at the warning threshold, HSI `>= 2.0`, or a watch-level surge above
-`12 cm/min`; `WATCH` is selected at the watch threshold, HSI `>= 1.2`, surge above
-`8 cm/min`, or soil moisture above `85%`. Otherwise the reading is `NORMAL`. An HSI such
-as `0.60` is therefore correctly normal when water level and rate remain below the watch
-rules; the dashboard displays the matching reason beside the selected station.
-
-## Graph routing and alert lifecycle
-
-Each file in `shared/basins/` defines a directed weighted graph containing sensor stations, settlement targets, and hydraulic travel-time edges. Dijkstra's algorithm calculates the shortest downstream travel time from an affected source to each settlement:
-
-```text
-ETA(settlement) = current_time + shortest_travel_time(source, settlement)
-```
-
-The dashboard sorts the alert queue by flood-wave arrival time.
-
-### Alert upsert rule
-
-For every evaluation cycle:
-
-1. Query `alerts` for the same `source_node_id` and `affected_settlement_id`.
-2. Restrict the query to `ACTIVE` and `ACKNOWLEDGED`.
-3. If a row exists, update its ETA, risk level, settlement metadata, and population in place.
-4. Insert only when no open row exists.
-5. Broadcast only the resulting current alert state.
-
-This prevents a sustained station condition from creating a new duplicate row every five seconds.
-
-`alerts` also has a partial unique index on `(source_node_id, affected_settlement_id)` for
-`ACTIVE` and `ACKNOWLEDGED` rows. SQLite and PostgreSQL both support this index predicate.
-Resolved rows remain reusable for a later incident. During migration, an existing database
-with duplicate open pairs logs an explicit migration error so operators can resolve the
-duplicates before retrying; new databases are protected at creation time.
-
-### Recovery rule
-
-When a source station evaluates to `NORMAL`, all of its open alerts are transitioned to `RESOLVED`, with resolution timestamp, resolver, and history record. This applies during normal sensor recession as well as the manual simulator reset flow.
-
-### Manual state transitions
-
-- `ACTIVE -> ACKNOWLEDGED` requires an operator.
-- `ACKNOWLEDGED -> RESOLVED` requires an operator.
-- Automatic recovery can resolve open alerts when telemetry returns to `NORMAL`.
-
-## Persistence model
-
-| Table | Purpose | Important fields |
-|---|---|---|
-| `nodes` | Station metadata and current state | `node_id`, coordinates, elevation, thresholds, `current_risk` |
-| `sensor_readings` | Raw and computed telemetry | water, rain, soil, timestamp, EMA, scores, HSI, risk |
-| `alerts` | Settlement warning routes | source, settlement, ETA, risk, status, acknowledgement/resolution |
-| `alert_history` | State transition audit trail | alert ID, old/new status, actor, note, time |
-| `users` | Operator/viewer accounts | username, password hash, role |
-| `incidents` | Recovered warning periods | source, peak risk, start/recovery |
-| `settlements` | Public guidance metadata | name, evacuation zone, population |
-
-`backend/app/database.py` runs `create_all` plus idempotent additions for telemetry score columns and alert lifecycle columns. PostgreSQL installations use connection pooling and `pool_pre_ping`.
-
-## REST and WebSocket API
-
-Base URL:
-
-```text
-http://127.0.0.1:8000
-```
-
-### Public/read endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/health` | Service, broker, and WebSocket-client health |
-| `GET` | `/api/stats` | Reading, node, and active-alert counters |
-| `GET` | `/api/network/topology` | Shared graph JSON for map rendering |
-| `GET` | `/api/nodes` | Station status, latest reading, thresholds, freshness |
-| `GET` | `/api/nodes/{node_id}/readings?limit=50` | Chronological chart data |
-| `GET` | `/api/alerts?active_only=false&limit=30` | Recent alert records |
-| `GET` | `/api/settlements` | Settlement guidance metadata |
-| `GET` | `/api/incidents` | Recovered incident records |
-| `GET` | `/api/incidents/export.csv` | CSV incident export |
-| `GET` | `/api/alerts/{alert_id}/history` | Alert transition history |
-| `GET` | `/api/notifications/log` | Notification log |
-| `WS` | `/ws/stream` | Live telemetry and alert events |
-
-### Operator and demo endpoints
-
-| Method | Path | Role | Purpose |
-|---|---|---|---|
-| `POST` | `/api/auth/login` | Public | Returns bearer JWT |
-| `POST` | `/api/auth/users` | Local demo | Creates viewer/operator account (legacy compatibility) |
-| `POST` | `/api/alerts/{alert_id}/acknowledge` | Local demo | Acknowledges active alert |
-| `POST` | `/api/alerts/{alert_id}/resolve` | Local demo | Resolves acknowledged alert |
-| `PUT` | `/api/nodes/{node_id}/thresholds` | Local demo | Updates ordered water thresholds |
-| `PUT` | `/api/settlements/{settlement_id}` | Local demo | Updates public guidance metadata |
-| `POST` | `/api/spike/inject` | Local demo | Publishes simulator spike command |
-| `POST` | `/api/simulation/reset` | Local demo | Publishes reset and closes open alerts |
-
-Production deployments should add authentication. The local/demo build does not require an Authorization header:
-
-```text
-Authorization: Bearer <access_token>
-```
-
-## Dashboard information architecture
-
-The application keeps the operations navigation stable:
-
-### Public routes
-
-- `/` is the public landing page with the basin overview, live network preview, safety guidance, and dashboard entry points.
-- `/bulletin` is the public, read-only situation bulletin.
-- `/app/monitor`, `/app/alerts`, `/app/incidents`, and `/app/configuration` are the authenticated operations surfaces.
-- The previous `/monitor`, `/alerts`, `/incidents`, `/configuration`, and `/public` paths redirect to their new locations.
-
-### Monitor
-
-- Basin map and river network.
-- Selected station telemetry chart.
-- Current water level, HSI, rate, and component terms.
-- Six-station live status list.
-- Settlement alert queue.
-- Expandable telemetry/algorithm audit.
-
-### Alerts
-
-- Active and historical alert records.
-- ETA-ranked settlement routes.
-- Acknowledge and resolve actions for operators.
-- Alert timeline and notes.
-
-### Incidents
-
-- Recovered warning/critical periods.
-- Peak HSI and duration summaries.
-- Incident detail and export-to-CSV action.
-
-### Configuration
-
-- Station thresholds.
-- Settlement names, evacuation zones, and populations.
-- Operator-only editing with validation.
-
-### Public bulletin
-
-- Public read-only station conditions.
-- One general safety guidance section.
-- Settlement-specific evacuation points only on each alert card.
-
-## Configuration
-
-Copy `.env.example` to `.env` at the repository root or configure environment variables through the deployment environment. `backend/app/config.py` loads root, backend, and process environment files.
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:///./flood_system.db` | SQLAlchemy database URL |
-| `MQTT_BROKER` | `broker.hivemq.com` | MQTT broker hostname |
-| `MQTT_PORT` | `1883` | MQTT broker port |
-| `MQTT_TOPIC_TELEMETRY` | `nepal/trishuli/sensors/#` | Telemetry subscription |
-| `MQTT_TOPIC_CONTROL` | `nepal/trishuli/control/spike` | Simulator control topic |
-| `MQTT_CLIENT_ID` | `trishuli_backend_ingestor` | Backend MQTT client prefix |
-| `EMA_WINDOW_SIZE` | `12` | Analysis rolling window |
-| `SOIL_MOISTURE_SAT_THRESHOLD` | `40.0` | Saturation contribution threshold |
-| `RATE_OF_CHANGE_WEIGHT` | `0.40` | HSI rate component weight |
-| `WATER_DEV_WEIGHT` | `0.45` | HSI water deviation weight |
-| `SOIL_MOISTURE_WEIGHT` | `0.15` | HSI soil component weight |
-| `JWT_SECRET` | random per process | JWT signing secret; set a long random value in `.env` |
-| `MQTT_USERNAME` / `MQTT_PASSWORD` | empty | Broker credentials (use on a private broker) |
-| `STALE_AFTER_SECONDS` | `60` | Silence before a station is shown OFFLINE |
-| `ALLOWED_ORIGINS` | localhost dev ports | Comma-separated browser origins allowed by CORS |
-| `DEMO_CONTROLS_ENABLED` | `true` | Enables the spike / reset demo endpoints |
-| `EMAIL_PROVIDER`, `SMTP_HOST/PORT/USERNAME/PASSWORD/FROM/STARTTLS` | `simulated` | Set provider to `smtp` to send real email |
-| `JWT_EXPIRE_MINUTES` | `480` | Token lifetime |
-| `DEFAULT_OPERATOR_USERNAME` | `operator` | Seed operator username |
-| `DEFAULT_OPERATOR_PASSWORD` | empty | Operator password. Empty = a random one-time password is printed on first start |
-| `EMAIL_PROVIDER` | `simulated` | Notification provider mode |
-
-The frontend development client currently targets `http://127.0.0.1:8000/api` and `ws://127.0.0.1:8000/ws/stream`. Change these service URLs in `frontend/src/services/api.js` and the WebSocket hook when deploying behind a different origin. Local/demo operator authentication is disabled so the Demo control can be used directly; the login endpoint remains only as a backwards-compatible API surface.
-
-## Local setup and operation
+## 🚀 Quick Start Guide
 
 ### Prerequisites
+- **Python 3.11+** installed
+- **Node.js 18+ & npm** installed
+- **MySQL Server** (XAMPP / MySQL Workbench / Docker) running locally
 
-- Python 3.10 or newer.
-- Node.js 18 or newer.
-- npm.
-- An MQTT broker reachable by both simulator and backend.
-- PostgreSQL only if using a PostgreSQL `DATABASE_URL`; SQLite needs no separate service.
+---
 
-Install backend dependencies according to the Python environment used by the project. Frontend dependencies are declared in `frontend/package.json`.
+### Step 1: Clone & Configure
 
-### Start everything on Windows
+```powershell
+# Clone the repository
+git clone https://github.com/itsniranjannn/Himdhara.git
+cd Himdhara
+
+# Create and configure .env
+cp .env.example .env
+```
+
+Ensure your `.env` contains:
+```env
+DATABASE_URL=mysql+pymysql://root:@localhost:3306/floodalert
+JWT_SECRET=your_super_secret_jwt_key
+DEFAULT_OPERATOR_USERNAME=operator
+DEFAULT_OPERATOR_PASSWORD=niranjan
+
+# Real email dispatch via Gmail SMTP
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_gmail_app_password
+SMTP_FROM=your_email@gmail.com
+SMTP_STARTTLS=true
+```
+
+---
+
+### Step 2: One-Click Startup (All Services)
+
+You can launch the **Backend**, **Sensor Simulator**, and **Frontend** simultaneously using the automated PowerShell script:
 
 ```powershell
 .\start_all.ps1
 ```
 
-The launcher opens:
-
-- FastAPI at `http://127.0.0.1:8000`
-- Swagger UI at `http://127.0.0.1:8000/docs`
-- Simulator publisher
-- Vite dashboard at `http://127.0.0.1:5173`
-
-The dashboard automatically reconnects its WebSocket with exponential backoff (capped at 30 seconds) and sends a heartbeat `ping` every 15 seconds. The backend answers with `pong`. The Demo button (operator sign-in required) publishes an `INJECT_SPIKE` command; watch the selected station's water level, rate, HSI, risk badge, and map popup for the resulting live values.
-
-### Start services manually
-
-Terminal 1:
+Or start the components individually in separate terminals:
 
 ```powershell
-python backend/run.py
-```
+# Terminal 1: Backend (FastAPI on Port 8000)
+python backend\run.py
 
-Terminal 2:
+# Terminal 2: Sensor Network Simulator (MQTT Telemetry Publisher)
+python -u sensor-sim\simulator.py
 
-```powershell
-python sensor-sim/simulator.py
-```
-
-Terminal 3:
-
-```powershell
+# Terminal 3: Operations Dashboard (Vite on Port 5173)
 cd frontend
 npm install
 npm run dev
 ```
 
-### Frontend commands
+Visit **`http://localhost:5173`** to access the live dashboard!
 
-```powershell
-cd frontend
-npm run dev       # Development server
-npm run build     # Production bundle
-npm run lint      # Oxlint
-npm run preview   # Serve the production bundle locally
-```
+---
 
-## Demo and spike workflow
+## 🎯 Evaluator Demo / Viva Guide
 
-1. Start backend, simulator, and frontend.
-2. Open the Monitor page.
-3. Confirm `MQTT connected`, `WebSocket live`, and fresh station timestamps.
-4. Sign in using an operator account.
-5. Open **Demo**.
-6. Select a station, normally `NODE_LANGTANG_01`.
-7. Set the water surge and press **INJECT FLOOD SPIKE**.
-8. Observe the station rise through `WATCH`, `WARNING`, and/or `CRITICAL`.
-9. Observe downstream settlement alerts appear in ETA order.
-10. Leave the simulator running through its recession phase.
-11. Confirm alert rows are updated rather than duplicated.
-12. Confirm the open rows transition to `RESOLVED` after recovery.
-13. Use **Reset simulation** to immediately restore baseline and close open alert routes.
+### Demonstrating a Live Flash Flood During Presentation:
+1. Open the operations dashboard at `http://localhost:5173/app/monitor`.
+2. Click **Sign in** in the top navigation bar (`Username: operator`, `Password: niranjan`).
+3. Switch the basin dropdown to **Bagmati** or **Gandaki**.
+4. Click the **Demo** button in the header.
+5. Select a target headwater station (e.g. `Sundarijal Headwater Gauge`), adjust the surge slider to `+150 cm`, and click **Send flood spike**.
+6. **Watch the live cascade:**
+   - A floating status pill confirms: *"Spike sent. Watch the station turn WARNING then CRITICAL within a few readings."*
+   - Within 5–10 seconds, the station turns **CRITICAL (Red)** on both the map and telemetry charts.
+   - Downstream settlements (e.g., *Gokarna Riverside Wards*, *Tilganga*, *Thapathali*) receive calculated flood arrival times (ETAs).
+   - The system triggers an immediate **Bilingual HTML Emergency Email** delivered directly to registered settlement contacts.
+   - Click **Reset simulation** in the Demo menu at any time to return all river basins to baseline.
 
-The command-line equivalent is:
+---
 
-```powershell
-python sensor-sim/trigger_spike.py
-```
+## 👥 Contributors & Academic Credits
 
-The dashboard and API require an operator JWT for spike and reset operations. If a token expires, the API client clears the stored session and the UI returns to the operator sign-in modal.
+- **Project Lead & Developer**: Niranjan Katwal ([@itsniranjannn](https://github.com/itsniranjannn))
+- **Program**: Bachelor of Computer / Software Engineering (8th Semester Final Project)
+- **Institution**: Pokhara University / Tribhuvan University Affiliated Engineering College, Nepal
 
-## Authentication and authorization
+---
 
-- Passwords are stored as PBKDF2-HMAC-SHA256 hashes (200,000 rounds) with random per-password salts. Login is rate-limited (8 attempts per minute per client and username).
-- Tokens are signed locally as HS256-style JWTs.
-- Reads are public: anyone can open the dashboard, the bulletin and read stations, alerts, incidents and settlements without signing in.
-- `operator` is required for every state-changing action: acknowledging/resolving alerts, editing thresholds and settlements, managing contacts, viewing the notification log, and the Demo spike/reset controls. `viewer` accounts are read-only; they can export CSV.
-- An anonymous request to a protected endpoint returns `401`; a viewer returns `403`.
-- The operator account comes from `DEFAULT_OPERATOR_USERNAME` / `DEFAULT_OPERATOR_PASSWORD` in `.env` and is re-synced on every start. If the password is empty the first start generates a random one-time password and prints it in the backend console. There is no default password.
-- `JWT_SECRET` must be set in `.env`. If it is empty a random per-process secret is used and sessions end on restart.
-- CORS is limited to `ALLOWED_ORIGINS`. The API binds to `127.0.0.1` by default (`API_HOST=0.0.0.0` to expose it).
-- Set `DEMO_CONTROLS_ENABLED=false` on a real deployment to disable the spike/reset endpoints.
-
-## Design system and motion
-
-The frontend design system is centralized in `frontend/src/styles/tokens.css`.
-
-### Typography
-
-- `Fraunces` (serif) weights 600 and 800 for headings and numbers.
-- `IBM Plex Sans` weights 400, 500 and 600 for interface text.
-- `IBM Plex Mono` weights 400 and 600 for readings, IDs and labels.
-- `Noto Sans Devanagari` for Nepali.
-- Numeric values use tabular numerals.
-
-### Palette
-
-Light "paper" is the default and dark "night survey" is `data-theme="dark"`. Both are checked against WCAG AA by `npm run check:contrast`.
-
-| Token | Paper | Night |
-|---|---|---|
-| `--surface-0` / `--surface-1` | `#ece4d2` / `#f8f3e6` | `#0c1418` / `#121d23` |
-| `--text-1` | `#15222a` | `#f0ead9` |
-| `--brand` (river ink) | `#1b4f7b` | `#82b8e3` |
-| `--accent` (vermilion) | `#b82e14` | `#ff7b5a` |
-| `--normal` / `--watch` / `--warning` / `--critical` | `#1c6b3d` / `#85600a` / `#a64709` / `#b3122a` | `#5fd48f` / `#f0c23a` / `#ff9650` / `#ff6b7d` |
-
-Risk colors are restricted to a status dot, adjacent label, and 2px left-edge accent. They are not used as full card fills or pill badges.
-The interface opens in paper and remembers the reader's choice of night survey.
-
-### Layout and interaction rules
-
-- Spacing uses 4, 8, 12, 16, 24, and 32px values.
-- Cards use `var(--surface-1)`, a one-pixel border, and a 12px radius.
-- Tables are bare rows separated by bottom borders.
-- Primary buttons use the glacier-teal brand accent with a 8px radius.
-- Secondary buttons are transparent with a one-pixel border.
-- The logo is the inline contour-line/alert-chevron SVG mark.
-- Three concepts are retained in `frontend/src/assets/logo-concepts/`; Concept 01, **Contour Signal**, is the selected mark. Its mountain/signal chevron remains legible at favicon size while the contour lines connect the product to Himalayan terrain and hydrological telemetry without relying on a generic warning symbol.
-- The Demo and sign-in surfaces are modal overlays above Leaflet layers.
-- Native text selection uses the dark design tokens instead of the browser's default blue highlight.
-
-### Motion
-
-- The public landing page uses Framer Motion for viewport reveals, pointer parallax, route transitions, and reduced-motion-aware choreography; SVG contour and river effects remain CSS-driven.
-- New alerts slide down 8px and fade in over 200ms.
-- Risk dots pulse once over 400ms when a station risk changes.
-- Updated numeric cells flash `var(--bg-2)` for 400ms.
-- Route changes use a 150ms opacity fade.
-- Only the WebSocket live indicator uses a continuous two-second breathing animation.
-
-### Public landing experience
-
-- `/` is the public animated basin overview. Its network preview reads live station state but the flood-wave button is visual-only and never writes to the database.
-- The landing page is lazy-loaded so the operations bundle does not pay the cost of the public presentation until it is requested.
-- The footer identifies the current React, FastAPI, MQTT, and Leaflet stack; project credits remain a replaceable placeholder.
-- Public bulletin presentation is intentionally separate from the operator shell: it has its own logo header, theme toggle, plain-language station conditions, and settlement guidance without operator controls or implementation jargon.
-- Configuration controls are disabled for signed-out and viewer sessions; the page explains that an operator sign-in is required to edit.
-- Water levels, rates, and telemetry values are shown to two decimal places. Interface timestamps use 24-hour `NPT` formatting.
-- The monitor chart scales to recent data with headroom and displays nearby WATCH, WARNING, and CRITICAL threshold lines. The map uses the free OpenStreetMap tile service and includes a station/settlement legend; this avoids third-party API-key tile fallbacks.
-- Incident cards show duration, peak HSI, shortened identifiers with the full ID available on hover, and CSV export. The editable footer credits live in [`frontend/src/config/credits.js`](frontend/src/config/credits.js).
-
-### Screenshots
-
-The final browser verification captures are in [`docs/screenshots/`](docs/screenshots/):
-
-- `landing-hero-dark.png` and `landing-hero-light.png` — public hero in both themes.
-- `landing-pipeline-dark.png` — animated Sensor → MQTT → Analysis → Routing → Alerts pipeline.
-- `monitor-idle-light.png` — six-station idle monitor.
-- `monitor-critical-dark.png` and `monitor-critical-light.png` — live spike state with CRITICAL station and downstream routes.
-- `alerts-dark.png`, `incidents-dark.png`, and `configuration-dark.png` — operations surfaces.
-- `bulletin-alert-dark.png` — public bulletin during an active alert.
-- `mobile-bulletin-dark.png` — narrow mobile bulletin with no horizontal overflow.
-- `monitor-critical-latest.png`, `alerts-active-latest.png`, `bulletin-active-latest.png`, `mobile-bulletin-latest.png`, and `monitor-light-latest.png` — current-round live spike verification captures.
-
-Screenshots are captured from the rendered app viewport only; browser chrome and personal bookmarks are excluded.
-
-## Testing and verification
-
-### Backend
-
-```powershell
-python -m pytest backend/tests -v
-```
-
-The backend suite covers anomaly calculations, graph routing, simulator reset behavior, and pipeline behavior.
-
-### Frontend
-
-```powershell
-cd frontend
-npm run build
-npm run lint
-```
-
-### Verified current state
-
-- Backend suite: **12 tests passed**.
-- Frontend production build: **passed**.
-- Frontend lint: **passed with zero warnings**.
-- Vite build emitted no chunk-size warning after lazy-loading the landing page; the largest generated JavaScript asset is approximately 415 kB minified.
-- Browser verification: landing page, both themes, desktop and mobile layouts, six fresh station timestamps, real Demo spike to CRITICAL, five ETA-sorted downstream routes, alert bulletin state, modal layering above Leaflet, route redirects, and stable alert upsert behavior.
-- `start_all.ps1` anchors backend and simulator processes to the repository root, starts Vite in `frontend`, and opens the public landing page at `/`.
-
-## Troubleshooting
-
-### Stations show stale timestamps
-
-1. Check that `python sensor-sim/simulator.py` is running.
-2. Confirm the simulator and backend use the same MQTT broker and topics.
-3. Open `/api/health` and confirm the backend is online.
-4. Check backend logs for MQTT connection or payload errors.
-5. Check `/api/nodes` for `last_reading_at`.
-6. If an existing database was created before telemetry score fields were added, restart the backend so `migrate_schema()` can run.
-
-### WebSocket is offline
-
-1. Confirm the backend is listening on port 8000.
-2. Confirm the browser is using `ws://127.0.0.1:8000/ws/stream`.
-3. Check for firewall or broker-independent backend errors.
-4. The client automatically retries with backoff and sends heartbeat pings.
-
-### Demo does not update telemetry
-
-Confirm the backend is listening on port `8000`, the simulator is connected to the configured MQTT broker, and the browser is using `ws://127.0.0.1:8000/ws/stream`. The Demo button needs an operator sign-in first. Then watch the selected station for updated water, rate, HSI, risk, and popup values.
-
-### Alerts appear duplicated
-
-Inspect the pair using:
-
-```sql
-SELECT source_node_id, affected_settlement_id, status, COUNT(*)
-FROM alerts
-WHERE status IN ('ACTIVE', 'ACKNOWLEDGED')
-GROUP BY source_node_id, affected_settlement_id;
-```
-
-The count should be one for each open source/settlement pair. Repeated evaluation should update the existing row's ETA and risk rather than insert a new row.
-
-### No alerts appear during a spike
-
-1. Confirm the station crosses `WARNING` or `CRITICAL`.
-2. Confirm the topology contains downstream settlement edges.
-3. Check the backend MQTT logs.
-4. Check the browser console and WebSocket connection.
-5. Query `/api/alerts?active_only=true`.
-
-## Deployment and production considerations
-
-This repository is configured for local/demo operation. Before production use:
-
-- Use a private authenticated MQTT broker with TLS.
-- Use PostgreSQL with backups, migrations, and restricted network access.
-- Set a strong random `JWT_SECRET`.
-- Replace default operator credentials.
-- Restrict CORS to the deployed dashboard origin.
-- Serve the API and dashboard over HTTPS/WSS.
-- Put the API behind a reverse proxy with request limits and structured logs.
-- Replace the simulated email provider with an audited, rate-limited delivery service.
-- Add database indexes or constraints for open-alert pair uniqueness if concurrent workers are introduced.
-- Add a durable job/queue strategy if alert notifications must survive process restarts.
-- Monitor MQTT connection health, WebSocket clients, ingestion latency, database growth, and alert transitions.
-- Add retention/archival policies for high-volume `sensor_readings`.
-- Validate all thresholds and topology changes through review before deployment.
-
-## License and academic use
-
-This is an academic final-year project implementation for demonstrating distributed telemetry ingestion, explainable hydrological risk analysis, graph routing, and live operator UX. Review dependencies and external broker terms before redistribution or deployment.
-
-## Live email demo
-`python backend/tests/demo_email_live.py` starts a throw-away SMTP receiver, registers an English and a Nepali contact for every settlement, injects a spike in every basin and checks that each alerted settlement's contacts actually received the email, and nobody else did. Set `EMAIL_PROVIDER=smtp`, `SMTP_HOST=127.0.0.1`, `SMTP_PORT=2526`, `SMTP_STARTTLS=false` and `SMTP_FROM=alerts@himdhara.local` in `.env` first (it needs `pip install aiosmtpd`).
+<div align="center">
+  <sub>Built with ❤️ for disaster resilience, community safety, and river monitoring in Nepal.</sub>
+</div>

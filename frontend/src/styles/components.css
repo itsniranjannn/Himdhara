@@ -52,8 +52,13 @@
 .stale-notice { display: flex; align-items: center; gap: var(--space-2); margin: calc(-1 * var(--space-2)) 0 var(--space-4); color: var(--text-3); font-size: var(--text-xs); }
 
 /* ---- modal ---- */
-.modal-backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-6); background: rgba(4, 8, 20, .7); backdrop-filter: blur(3px); }
-.demo-modal { width: min(100%, 480px); max-height: calc(100dvh - 48px); overflow: auto; display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-8); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: var(--shadow-float); }
+.modal-backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-6); background: rgba(4, 8, 20, .7); backdrop-filter: blur(3px); }
+.demo-modal { width: min(100%, 480px); margin: auto; overflow: visible; display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-8); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: var(--shadow-float); }
+
+/* ---- toast notification ---- */
+.app-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; align-items: center; gap: 12px; max-width: 90vw; padding: 14px 24px; border-radius: 9999px; background: #090d16; color: #ffffff; font-size: 14px; font-weight: 600; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.2); cursor: pointer; animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.toast-dot { width: 10px; height: 10px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 12px #38bdf8; flex-shrink: 0; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .modal-heading { display: flex; justify-content: space-between; gap: var(--space-4); }
 .modal-heading h2 { margin: 0; font: 700 var(--text-xl)/1.1 var(--font-display); }
 .modal-heading p { margin: var(--space-2) 0 0; color: var(--text-3); font-size: var(--text-sm); }

@@ -23,7 +23,7 @@ export default function Modal({ title, description, onClose, children, onSubmit 
     };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); opener?.focus?.(); };
-  }, [onClose]);
+  }, []);
 
   const Wrapper = onSubmit ? "form" : "div";
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
