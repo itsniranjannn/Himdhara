@@ -1,9 +1,9 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:0d1117,50:0e7490,100:06b6d4&section=header&text=Himdhara%20(%E0%A4%B9%E0%A4%BF%E0%A4%AE%E0%A4%A7%E0%A4%BE%E0%A4%B0%E0%A4%BE)&fontSize=40&fontColor=ffffff&fontAlignY=38" width="100%" alt="Himdhara Header"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&height=125&color=0:0d1117,50:0e7490,100:06b6d4&section=header&text=Himdhara%20(%E0%A4%B9%E0%A4%BF%E0%A4%AE%E0%A4%A7%E0%A4%BE%E0%A4%B0%E0%A4%BE)&fontSize=40&fontColor=ffffff&fontAlignY=38&animation=fadeIn" width="100%" alt="Himdhara Header"/>
 
 <a href="https://github.com/itsniranjannn/Himdhara">
-  <img src="https://readme-typing-svg.demolab.com?font=Poppins&weight=600&size=21&duration=2800&pause=900&color=22D3EE&center=true&vCenter=true&width=700&lines=Autonomous+Multi-Basin+River+Early+Warning.;Real-time+MQTT+IoT+hydrology+telemetry.;Dijkstra+downstream+flood+ETA+routing.;Bilingual+Nepali+%26+English+hazard+dispatch." alt="Typing animation"/>
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=20&duration=2600&pause=800&color=22D3EE&center=true&vCenter=true&width=700&lines=Autonomous+Multi-Basin+River+Early+Warning.;Real-time+MQTT+IoT+hydrology+telemetry.;Dijkstra+downstream+flood+ETA+routing.;Bilingual+Nepali+%26+English+hazard+dispatch." alt="Typing animation"/>
 </a>
 
 <br/>
