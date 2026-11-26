@@ -26,6 +26,10 @@
 
 **Himdhara (हिमधारा)** is an autonomous, real-time river surveillance and downstream hazard dispatch platform engineered for Nepal's Himalayan river basins (Trishuli, Bagmati, Koshi, Gandaki, and Karnali).
 
+<p align="center">
+  <img src="docs/screenshots/landing-hero-dark.png" alt="Himdhara Public Portal" width="94%" />
+</p>
+
 ---
 
 ## Features
@@ -50,6 +54,20 @@
 </td>
 </tr>
 </table>
+
+### System Interface
+
+| Operations Center (Dark) | Operations Center (Light) |
+| :---: | :---: |
+| <img src="docs/screenshots/monitor-critical-dark.png" width="100%" alt="Monitor Dark" /> | <img src="docs/screenshots/monitor-light-latest.png" width="100%" alt="Monitor Light" /> |
+
+| Critical Flood Incident | Incident Timeline Log |
+| :---: | :---: |
+| <img src="docs/screenshots/alerts-active-latest.png" width="100%" alt="Alerts View" /> | <img src="docs/screenshots/incidents-dark.png" width="100%" alt="Incidents Log" /> |
+
+| Public Web Bulletin | Mobile Responsive View |
+| :---: | :---: |
+| <img src="docs/screenshots/bulletin-active-latest.png" width="100%" alt="Public Bulletin" /> | <img src="docs/screenshots/mobile-bulletin-latest.png" width="60%" alt="Mobile Bulletin" /> |
 
 ---
 
